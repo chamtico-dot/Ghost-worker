@@ -702,7 +702,7 @@ class GhostWorkerHandler(BaseHTTPRequestHandler):
             return
 
         if path == "/api/attendance":
-            session = self.require_any_privilege({"attendance", "employees", "ghost-workers"})
+            session = self.require_privilege("attendance")
             if not session:
                 return
             with connect_db() as db:
