@@ -147,23 +147,12 @@ const employeePageSize = 5;
 let employeeTotal = 845;
 let employeePage = 1;
 
-const payrollRecords = [
-  { id: "PAY-001", name: "James Okello", department: "Finance", period: "June 2026", amount: 3250000, deductions: 420000, status: "Paid" },
-  { id: "PAY-002", name: "Sarah Namutebi", department: "Human Resources", period: "June 2026", amount: 2890000, deductions: 365000, status: "Paid" },
-  { id: "PAY-003", name: "David Mugisha", department: "ICT", period: "June 2026", amount: 3100000, deductions: 405000, status: "Paid" },
-  { id: "PAY-004", name: "Mary Akello", department: "Administration", period: "June 2026", amount: 2750000, deductions: 340000, status: "Pending" },
-  { id: "PAY-005", name: "Peter Kato", department: "Engineering", period: "June 2026", amount: 3200000, deductions: 398000, status: "Paid" },
-  { id: "PAY-006", name: "James Okello", department: "Finance", period: "May 2026", amount: 3180000, deductions: 410000, status: "Paid" },
-  { id: "PAY-007", name: "Sarah Namutebi", department: "Human Resources", period: "May 2026", amount: 2810000, deductions: 352000, status: "Paid" },
-  { id: "PAY-008", name: "David Mugisha", department: "ICT", period: "May 2026", amount: 3020000, deductions: 391000, status: "Paid" },
-  { id: "PAY-009", name: "Mary Akello", department: "Administration", period: "May 2026", amount: 2690000, deductions: 331000, status: "Paid" },
-  { id: "PAY-010", name: "Peter Kato", department: "Engineering", period: "May 2026", amount: 3120000, deductions: 386000, status: "Paid" },
-  { id: "PAY-011", name: "James Okello", department: "Finance", period: "April 2026", amount: 3050000, deductions: 398000, status: "Paid" },
-  { id: "PAY-012", name: "Sarah Namutebi", department: "Human Resources", period: "April 2026", amount: 2740000, deductions: 344000, status: "Paid" },
-  { id: "PAY-013", name: "David Mugisha", department: "ICT", period: "April 2026", amount: 2950000, deductions: 382000, status: "Pending" },
-  { id: "PAY-014", name: "Mary Akello", department: "Administration", period: "April 2026", amount: 2610000, deductions: 322000, status: "Paid" },
-  { id: "PAY-015", name: "Peter Kato", department: "Engineering", period: "April 2026", amount: 3040000, deductions: 375000, status: "Paid" }
-];
+let payrollRecords = [];
+let payrollLoaded = false;
+let attendanceRecords = [];
+let attendanceLoaded = false;
+let employeeDirectory = [];
+let employeesLoaded = false;
 
 function getFilteredPayrollRecords() {
   const month = document.querySelector("#payroll-month")?.value;
@@ -194,7 +183,7 @@ function updatePayrollMetrics(records = getFilteredPayrollRecords()) {
   const deductions = records.reduce((sum, record) => sum + record.deductions, 0);
   const net = records.reduce((sum, record) => sum + record.amount, 0);
   const paid = records.filter((record) => record.status === "Paid").length;
-  values[0].textContent = document.querySelector("#payroll-department").value === "All departments" ? "845" : String(records.length);
+  values[0].textContent = String(records.length);
   values[1].textContent = formatPayrollAmount(gross);
   values[2].textContent = formatPayrollAmount(deductions);
   values[3].textContent = formatPayrollAmount(net);
@@ -202,20 +191,16 @@ function updatePayrollMetrics(records = getFilteredPayrollRecords()) {
   values[5].textContent = records.length ? `${Math.round((paid / records.length) * 100)}%` : "0%";
 }
 
-function refreshPayrollView() {
+function refreshPayrollView(showFeedback = false) {
   const records = getFilteredPayrollRecords();
   renderPayrollTable(records);
   updatePayrollMetrics(records);
-  showToast(`Payroll view updated for ${document.querySelector("#payroll-month").value} · ${document.querySelector("#payroll-department").value}`);
+  if (showFeedback) {
+    showToast(`Payroll view updated for ${document.querySelector("#payroll-month")?.value || ""} · ${document.querySelector("#payroll-department")?.value || ""}`);
+  }
 }
 
-const attendanceRecords = [
-  { id: "E001", name: "Rakesh Kumar", department: "Technical staff", location: "Head Office", status: "Present", present: 22, absent: 1, leave: 0, overtime: 12 },
-  { id: "E002", name: "Priya Sharma", department: "Administrative staff", location: "Branch A", status: "Present", present: 21, absent: 2, leave: 1, overtime: 14 },
-  { id: "E003", name: "Amit Verma", department: "Support staff", location: "Head Office", status: "Leave", present: 18, absent: 0, leave: 4, overtime: 10 },
-  { id: "E004", name: "Neha Gupta", department: "Administrative staff", location: "Branch B", status: "Present", present: 22, absent: 1, leave: 1, overtime: 16 },
-  { id: "E005", name: "Sandeep Yadav", department: "Management", location: "Head Office", status: "Absent", present: 20, absent: 3, leave: 2, overtime: 8 }
-];
+
 
 function getFilteredAttendanceRecords() {
   const department = document.querySelector("#attendance-department")?.value;
@@ -240,19 +225,19 @@ function renderAttendanceTable(records = getFilteredAttendanceRecords()) {
 function refreshAttendanceView() {
   const records = getFilteredAttendanceRecords();
   renderAttendanceTable(records);
-  const filtered = document.querySelector("#attendance-department").value !== "All departments" ||
-    document.querySelector("#attendance-location").value !== "All locations" ||
-    document.querySelector("#attendance-status").value !== "All statuses";
-  const total = filtered ? records.length : 248;
-  const present = filtered ? records.filter((record) => record.status === "Present").length : 201;
-  const absent = filtered ? records.filter((record) => record.status === "Absent").length : 14;
-  const leave = filtered ? records.filter((record) => record.status === "Leave").length : 22;
-  const overtime = filtered ? records.reduce((sum, record) => sum + record.overtime, 0) : 186;
+  const source = records.length ? records : attendanceRecords;
+  const total = source.length;
+  const present = source.filter((record) => record.status === "Present").length;
+  const absent = source.filter((record) => record.status === "Absent").length;
+  const leave = source.filter((record) => record.status === "Leave").length;
+  const overtime = source.reduce((sum, record) => sum + Number(record.overtime || 0), 0);
   const kpis = document.querySelectorAll(".attendance-kpi strong");
   [total, present, absent, leave, overtime].forEach((value, index) => {
     if (kpis[index]) kpis[index].textContent = String(value);
   });
-  showToast(`Attendance view updated for ${document.querySelector("#attendance-range").value}`);
+  if (kpis[7] && total) {
+    kpis[7].textContent = `${((present / total) * 100).toFixed(1)}%`;
+  }
 }
 
 function exportAttendance() {
@@ -261,7 +246,8 @@ function exportAttendance() {
   const csv = rows.map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(",")).join("\r\n");
   const link = document.createElement("a");
   link.href = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
-  link.download = `kiu-attendance-${document.querySelector("#attendance-range").value.replace(/\s+/g, "-").toLowerCase()}.csv`;
+  const period = document.querySelector("#attendance-period")?.value || "current";
+  link.download = `kiu-attendance-${String(period).replace(/\s+/g, "-").toLowerCase()}.csv`;
   link.click();
   URL.revokeObjectURL(link.href);
   showToast("Attendance data exported as CSV");
@@ -374,10 +360,129 @@ function updateGhostTrend(range) {
   });
 }
 
+function riskBadgeClass(risk) {
+  const key = (risk || "").toLowerCase();
+  if (key === "critical") return "risk-critical";
+  if (key === "high") return "risk-high";
+  if (key === "medium") return "risk-medium";
+  return "risk-low";
+}
+
+function investigationBadgeClass(status) {
+  const key = (status || "Open").toLowerCase();
+  if (key.includes("confirmed")) return "inv-confirmed";
+  if (key.includes("under")) return "inv-under";
+  if (key.includes("cleared") || key.includes("false")) return "inv-cleared";
+  return "inv-open";
+}
+
+function getGhostFilterState() {
+  return {
+    search: (document.querySelector("#ghost-search")?.value || "").trim().toLowerCase(),
+    risk: document.querySelector("#ghost-filter-risk")?.value || "all",
+    status: document.querySelector("#ghost-filter-status")?.value || "all",
+    department: document.querySelector("#ghost-filter-department")?.value || "all",
+  };
+}
+
+function getFilteredGhostAlerts() {
+  const { search, risk, status, department } = getGhostFilterState();
+  return ghostAlerts.filter((alert) => {
+    if (risk !== "all" && alert.risk !== risk) return false;
+    if (status !== "all" && (alert.investigationStatus || "Open") !== status) return false;
+    if (department !== "all" && (alert.department || "") !== department) return false;
+    if (search) {
+      const haystack = `${alert.id || ""} ${alert.name || ""} ${alert.department || ""}`.toLowerCase();
+      if (!haystack.includes(search)) return false;
+    }
+    return true;
+  });
+}
+
+function populateGhostDepartmentFilter() {
+  const select = document.querySelector("#ghost-filter-department");
+  if (!select) return;
+  const current = select.value || "all";
+  const departments = [...new Set(ghostAlerts.map((a) => a.department).filter(Boolean))].sort();
+  select.innerHTML = `<option value="all">All departments</option>${departments.map((d) => `<option value="${escapeHtml(d)}">${escapeHtml(d)}</option>`).join("")}`;
+  if ([...select.options].some((o) => o.value === current)) select.value = current;
+}
+
+function updateGhostFilterSummary(filteredCount) {
+  const summary = document.querySelector("#ghost-filter-summary");
+  const clearBtn = document.querySelector("#ghost-filter-clear");
+  if (!summary) return;
+  const { search, risk, status, department } = getGhostFilterState();
+  const active = Boolean(search || risk !== "all" || status !== "all" || department !== "all");
+  if (clearBtn) clearBtn.hidden = !active;
+  if (!active) {
+    summary.hidden = true;
+    summary.textContent = "";
+    return;
+  }
+  summary.hidden = false;
+  summary.textContent = `Showing ${filteredCount} of ${ghostAlerts.length} alert${ghostAlerts.length === 1 ? "" : "s"}`;
+}
+
 function renderGhostAlerts() {
   const tbody = document.querySelector(".ghost-table tbody");
   if (!tbody) return;
-  tbody.innerHTML = ghostAlerts.map((alert, index) => `<tr><td>${index + 1}</td><td>${escapeHtml(alert.id)}</td><td>${escapeHtml(alert.name)}</td><td>${escapeHtml(alert.status)}</td><td><b class="risk-${alert.risk.toLowerCase()}">${escapeHtml(alert.risk)}</b></td><td>${new Date(alert.detected).toLocaleString("en-GB")}</td><td><button data-ghost-action="view" data-ghost-id="${escapeHtml(alert.id)}">View profile</button></td></tr>`).join("") || '<tr><td colspan="7">No suspicious records found.</td></tr>';
+  const filtered = getFilteredGhostAlerts();
+  updateGhostFilterSummary(filtered.length);
+  tbody.innerHTML = filtered.map((alert, index) => {
+    const score = alert.riskScore != null ? alert.riskScore : "—";
+    const inv = alert.investigationStatus || "Open";
+    return `<tr>
+      <td>${index + 1}</td>
+      <td>${escapeHtml(alert.id)}</td>
+      <td>${escapeHtml(alert.name)}</td>
+      <td>${escapeHtml(alert.status)}</td>
+      <td><b class="${riskBadgeClass(alert.risk)}">${escapeHtml(String(score))} · ${escapeHtml(alert.risk || "—")}</b></td>
+      <td><span class="inv-badge ${investigationBadgeClass(inv)}">${escapeHtml(inv)}</span></td>
+      <td>${new Date(alert.detected).toLocaleString("en-GB")}</td>
+      <td><button data-ghost-action="view" data-ghost-id="${escapeHtml(alert.id)}">View profile</button></td>
+    </tr>`;
+  }).join("") || `<tr><td colspan="8">${ghostAlerts.length ? "No alerts match the current filters." : "No suspicious records found."}</td></tr>`;
+}
+
+function clearGhostFilters() {
+  const search = document.querySelector("#ghost-search");
+  const risk = document.querySelector("#ghost-filter-risk");
+  const status = document.querySelector("#ghost-filter-status");
+  const department = document.querySelector("#ghost-filter-department");
+  if (search) search.value = "";
+  if (risk) risk.value = "all";
+  if (status) status.value = "all";
+  if (department) department.value = "all";
+  renderGhostAlerts();
+}
+
+function exportGhostAlertsCsv() {
+  const rows = getFilteredGhostAlerts();
+  if (!rows.length) {
+    showToast(ghostAlerts.length ? "No alerts match the current filters" : "No alerts to export");
+    return;
+  }
+  const header = ["Employee ID", "Name", "Department", "Flag Status", "Risk Level", "Risk Score", "Investigation Status", "Detected At", "Details"];
+  const csvRows = [header].concat(rows.map((alert) => [
+    alert.id || "",
+    alert.name || "",
+    alert.department || "",
+    alert.status || "",
+    alert.risk || "",
+    alert.riskScore != null ? String(alert.riskScore) : "",
+    alert.investigationStatus || "Open",
+    alert.detected ? new Date(alert.detected).toISOString() : "",
+    (alert.details || "").replace(/\r?\n/g, " "),
+  ]));
+  const csv = csvRows.map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(",")).join("\r\n");
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+  const stamp = new Date().toISOString().slice(0, 10);
+  link.download = `kiu-ghost-worker-alerts-${stamp}.csv`;
+  link.click();
+  URL.revokeObjectURL(link.href);
+  showToast(`Exported ${rows.length} alert${rows.length === 1 ? "" : "s"} as CSV`);
 }
 
 async function loadGhostDashboard() {
@@ -402,6 +507,7 @@ async function loadGhostDashboard() {
   if (statistics[1]) statistics[1].textContent = `${suspicious} (${(100 - Number(rate)).toFixed(1)}%)`;
   const scanCopy = document.querySelector(".scan-visual h3");
   if (scanCopy) scanCopy.textContent = "Latest database scan";
+  populateGhostDepartmentFilter();
   renderGhostAlerts();
   renderRoleDashboard();
   const selectedRange = document.querySelector("[data-ghost-range].active")?.dataset.ghostRange || "7D";
@@ -414,16 +520,20 @@ function clearGhostDashboard() {
   document.querySelectorAll(".ghost-kpis article strong, .scan-visual dl b").forEach((value) => {
     value.textContent = "—";
   });
-  document.querySelector(".ghost-table tbody").replaceChildren();
+  document.querySelector(".ghost-table tbody")?.replaceChildren();
   const donutValue = document.querySelector(".ghost-donut span");
   if (donutValue) donutValue.innerHTML = "—<small>Not loaded</small>";
+  clearGhostFilters();
 }
 
 async function openGhostEmployeeProfile(employeeId) {
   openModal("Employee profile", "<p>Loading employee record...</p>", "Ghost Worker Detection");
   const { employee } = await apiRequest(`/api/ghost/employees/${encodeURIComponent(employeeId)}`);
   const initials = employee.name.split(/\s+/).map((part) => part[0]).join("").slice(0, 2).toUpperCase();
-  const risk = employee.risk ? `<span class="employee-detail-risk risk-${employee.risk.toLowerCase()}">${escapeHtml(employee.risk)} risk</span>` : "";
+  const scoreLabel = employee.riskScore != null ? `${employee.riskScore}` : "—";
+  const risk = employee.risk
+    ? `<span class="employee-detail-risk ${riskBadgeClass(employee.risk)}">${escapeHtml(String(scoreLabel))} · ${escapeHtml(employee.risk)}</span>`
+    : "";
   const photo = employee.photo
     ? `<img src="${employee.photo}" alt="Profile photo of ${escapeHtml(employee.name)}">`
     : `<div class="employee-detail-photo-placeholder" role="img" aria-label="No photo on file for ${escapeHtml(employee.name)}"><span>${escapeHtml(initials)}</span><small>No photo on file</small></div>`;
@@ -434,16 +544,56 @@ async function openGhostEmployeeProfile(employeeId) {
     ? `<label class="employee-detail-upload">Upload photo<input type="file" accept="image/png,image/jpeg,image/webp" data-employee-photo="${escapeHtml(employee.id)}"></label>`
     : "";
   const detectedAt = employee.detected ? new Date(employee.detected).toLocaleString("en-GB") : "No active review";
+  const canInvestigate = hasPrivilege("investigate") || hasPrivilege("configure");
+  const invStatus = employee.investigationStatus || "Open";
+  const statusOptions = ["Open", "Under Investigation", "Confirmed Ghost", "Cleared", "False Positive"]
+    .map((s) => `<option value="${escapeHtml(s)}" ${s === invStatus ? "selected" : ""}>${escapeHtml(s)}</option>`)
+    .join("");
+  const reasons = (employee.reasons && employee.reasons.length)
+    ? `<ul class="risk-reasons">${employee.reasons.map((r) => `<li>${escapeHtml(r)}</li>`).join("")}</ul>`
+    : `<p class="muted">${escapeHtml(employee.details || "No contributing factors listed.")}</p>`;
+  const notes = (employee.notes || []).map((n) => `
+    <article class="inv-note">
+      <header><strong>${escapeHtml(n.authorName)}</strong><time>${new Date(n.createdAt).toLocaleString("en-GB")}</time></header>
+      <p>${escapeHtml(n.note)}</p>
+    </article>`).join("") || `<p class="muted">No investigation notes yet.</p>`;
+  const investigationPanel = canInvestigate ? `
+    <section class="investigation-panel">
+      <h3>Investigation</h3>
+      <div class="investigation-controls">
+        <label>Status
+          <select data-inv-status="${escapeHtml(employee.id)}">${statusOptions}</select>
+        </label>
+        <button type="button" class="modal-secondary" data-ghost-action="save-status" data-ghost-id="${escapeHtml(employee.id)}">Update status</button>
+      </div>
+      <div class="investigation-notes">
+        <h4>Notes</h4>
+        <div class="inv-notes-list">${notes}</div>
+        <form class="inv-note-form" data-note-form="${escapeHtml(employee.id)}">
+          <label class="visually-hidden" for="inv-note-input">Add note</label>
+          <textarea id="inv-note-input" name="note" rows="3" maxlength="2000" placeholder="Add an investigation note..." required></textarea>
+          <button type="submit" class="modal-secondary">Add note</button>
+        </form>
+      </div>
+    </section>` : `
+    <section class="investigation-panel">
+      <h3>Investigation</h3>
+      <p>Status: <span class="inv-badge ${investigationBadgeClass(invStatus)}">${escapeHtml(invStatus)}</span></p>
+      <div class="inv-notes-list">${notes}</div>
+    </section>`;
+
   openModal("Employee profile", `<article class="employee-detail-card">
-    <header class="employee-detail-header"><div class="employee-detail-photo">${photo}</div><div class="employee-detail-identity"><p class="eyebrow">Employee record</p><h3>${escapeHtml(employee.name)}</h3><span>${escapeHtml(employee.id)}</span><div class="employee-detail-badges"><span>${escapeHtml(employee.status)}</span>${risk}</div>${upload}</div></header>
+    <header class="employee-detail-header"><div class="employee-detail-photo">${photo}</div><div class="employee-detail-identity"><p class="eyebrow">Employee record</p><h3>${escapeHtml(employee.name)}</h3><span>${escapeHtml(employee.id)}</span><div class="employee-detail-badges"><span>${escapeHtml(employee.status)}</span>${risk}<span class="inv-badge ${investigationBadgeClass(invStatus)}">${escapeHtml(invStatus)}</span></div>${upload}</div></header>
     <dl class="employee-detail-facts">
       <div><dt>Department</dt><dd>${escapeHtml(employee.department)}</dd></div>
       <div><dt>Last attendance</dt><dd>${employee.lastAttendanceDays === 0 ? "Today" : `${employee.lastAttendanceDays} days ago`}</dd></div>
       <div><dt>Biometric verification</dt><dd>${employee.biometricVerified ? "Verified" : "Needs review"}</dd></div>
       ${payrollFact}
+      <div><dt>Risk score</dt><dd>${escapeHtml(String(scoreLabel))} / 100</dd></div>
       <div><dt>Last detected</dt><dd>${escapeHtml(detectedAt)}</dd></div>
     </dl>
-    <section class="employee-detail-review"><h3>Review details</h3><p>${escapeHtml(employee.details)}</p></section>
+    <section class="employee-detail-review"><h3>Why flagged</h3>${reasons}</section>
+    ${investigationPanel}
   </article>`, "Ghost Worker Detection");
 }
 
@@ -657,6 +807,108 @@ document.addEventListener("click", (event) => {
     openModal(event.target.dataset.payrollName, `<div class="payroll-record-card"><p>Payroll details for the selected employee and pay period.</p><div class="modal-stat"><b>${amount}</b><span>${registerRow ? "payroll amount" : "net pay"}</span><b>${status}</b><span>payment status</span></div><p><strong>Pay period:</strong> ${period}<br><strong>Department:</strong> ${department}</p><button class="modal-secondary" data-action="payroll-record-export">Export payslip summary</button></div>`, "Payroll record");
   }
 });
+
+
+async function loadEmployeesDirectory(force = false) {
+  if (employeesLoaded && !force) return;
+  const data = await apiRequest("/api/employees");
+  employeeDirectory = data.employees || [];
+  employeesLoaded = true;
+  employeeTotal = employeeDirectory.length;
+  const deptSelect = document.querySelector("#employee-department");
+  if (deptSelect && data.departments) {
+    const current = deptSelect.value;
+    deptSelect.innerHTML = `<option>All departments</option>${data.departments.map((d) => `<option>${escapeHtml(d)}</option>`).join("")}`;
+    if ([...deptSelect.options].some((o) => o.value === current || o.textContent === current)) {
+      deptSelect.value = current;
+    }
+  }
+  const summary = data.summary || {};
+  const summaryValues = document.querySelectorAll(".employee-summary article strong");
+  if (summaryValues[0]) summaryValues[0].textContent = String(summary.total ?? employeeDirectory.length);
+  if (summaryValues[1]) summaryValues[1].textContent = String(summary.active ?? "—");
+  if (summaryValues[2]) summaryValues[2].textContent = String(summary.onLeave ?? "—");
+  if (summaryValues[3]) summaryValues[3].textContent = String(summary.departments ?? "—");
+  renderEmployeeDirectory();
+}
+
+function renderEmployeeDirectory() {
+  const tbody = document.querySelector("#employee-rows");
+  if (!tbody) return;
+  tbody.innerHTML = "";
+  employeeDirectory.forEach((emp) => {
+    const tr = document.createElement("tr");
+    tr.dataset.name = emp.name;
+    tr.dataset.department = emp.department;
+    tr.dataset.status = emp.status;
+    tr.innerHTML = `
+      <td><div class="employee-identity"><span class="employee-avatar">${escapeHtml((emp.name || "?").split(/\s+/).map(p => p[0]).join("").slice(0,2).toUpperCase())}</span><div><b>${escapeHtml(emp.name)}</b></div></div></td>
+      <td>${escapeHtml(emp.id)}</td>
+      <td>${escapeHtml(emp.email || "")}</td>
+      <td>${escapeHtml(emp.department)}</td>
+      <td>${escapeHtml(emp.designation || "Staff")}</td>
+      <td><span class="employee-status ${escapeHtml((emp.status || "Active").toLowerCase().replace(/\s+/g, "-"))}">${escapeHtml(emp.status || "Active")}</span></td>
+      <td><button type="button" data-employee-action="profile" data-employee-name="${escapeHtml(emp.name)}" aria-label="View ${escapeHtml(emp.name)}">◉</button>
+          <button type="button" data-employee-action="edit" data-employee-name="${escapeHtml(emp.name)}" aria-label="Edit ${escapeHtml(emp.name)}">↗</button></td>`;
+    tbody.appendChild(tr);
+  });
+  // refresh live NodeList used by filters
+  employeeRows.length = 0;
+  employeeRows.push(...tbody.querySelectorAll("tr"));
+  employeePage = 1;
+  filterEmployees();
+}
+
+async function loadAttendanceData(force = false) {
+  if (attendanceLoaded && !force) return;
+  const data = await apiRequest("/api/attendance");
+  attendanceRecords = data.records || [];
+  attendanceLoaded = true;
+  const summary = data.summary || {};
+  const kpis = document.querySelectorAll(".attendance-kpis article strong");
+  if (kpis[0]) kpis[0].textContent = String(summary.total ?? attendanceRecords.length);
+  if (kpis[1]) kpis[1].textContent = String(summary.present ?? "—");
+  if (kpis[2]) kpis[2].textContent = String(summary.absent ?? "—");
+  if (kpis[3]) kpis[3].textContent = String(summary.leave ?? "—");
+  if (kpis[4]) kpis[4].textContent = String(summary.overtime ?? "—");
+  if (kpis[7]) kpis[7].textContent = summary.attendanceRate != null ? `${summary.attendanceRate}%` : "—";
+  // populate department filter options from data
+  const dept = document.querySelector("#attendance-department");
+  if (dept) {
+    const departments = [...new Set(attendanceRecords.map((r) => r.department).filter(Boolean))].sort();
+    const current = dept.value;
+    dept.innerHTML = `<option>All departments</option>${departments.map((d) => `<option>${escapeHtml(d)}</option>`).join("")}`;
+    if ([...dept.options].some((o) => o.value === current || o.textContent === current)) dept.value = current;
+  }
+  const loc = document.querySelector("#attendance-location");
+  if (loc) {
+    const locations = [...new Set(attendanceRecords.map((r) => r.location).filter(Boolean))].sort();
+    const current = loc.value;
+    loc.innerHTML = `<option>All locations</option>${locations.map((d) => `<option>${escapeHtml(d)}</option>`).join("")}`;
+    if ([...loc.options].some((o) => o.value === current || o.textContent === current)) loc.value = current;
+  }
+  refreshAttendanceView();
+}
+
+async function loadPayrollData(force = false) {
+  if (payrollLoaded && !force) return;
+  const data = await apiRequest("/api/payroll");
+  payrollRecords = data.records || [];
+  payrollLoaded = true;
+  const monthSelect = document.querySelector("#payroll-month");
+  if (monthSelect && data.periods?.length) {
+    const current = monthSelect.value;
+    monthSelect.innerHTML = data.periods.map((p) => `<option>${escapeHtml(p)}</option>`).join("");
+    if ([...monthSelect.options].some((o) => o.value === current || o.textContent === current)) monthSelect.value = current;
+  }
+  const deptSelect = document.querySelector("#payroll-department");
+  if (deptSelect && data.departments?.length) {
+    const current = deptSelect.value;
+    deptSelect.innerHTML = `<option>All departments</option>${data.departments.map((d) => `<option>${escapeHtml(d)}</option>`).join("")}`;
+    if ([...deptSelect.options].some((o) => o.value === current || o.textContent === current)) deptSelect.value = current;
+  }
+  refreshPayrollView();
+}
 
 function filterEmployees() {
   const query = employeeSearch.value.trim().toLowerCase();
@@ -1093,6 +1345,7 @@ function showNavDetail(name) {
     document.querySelector(".content-grid").hidden = true;
     document.querySelector(".quick-stats").hidden = true;
     document.querySelector(".attendance-dashboard").scrollIntoView({ behavior: "smooth", block: "start" });
+    loadAttendanceData().catch((error) => showToast(error.message));
     return;
   }
   if (name === "payroll" || name === "finance" || name === "payroll-finance") {
@@ -1109,6 +1362,7 @@ function showNavDetail(name) {
     document.querySelector(".content-grid").hidden = true;
     document.querySelector(".quick-stats").hidden = true;
     document.querySelector("#payroll-dashboard").scrollIntoView({ behavior: "smooth", block: "start" });
+    loadPayrollData().catch((error) => showToast(error.message));
     return;
   }
   if (name === "employees") {
@@ -1121,6 +1375,7 @@ function showNavDetail(name) {
     document.querySelector("#projects-dashboard").hidden = true;
     document.querySelector(".employees-dashboard").hidden = false;
     document.querySelector(".employees-dashboard").scrollIntoView({ behavior: "smooth", block: "start" });
+    loadEmployeesDirectory().catch((error) => showToast(error.message));
     return;
   }
   document.querySelector("#dashboard-shell").classList.remove("attendance-mode");
@@ -1339,14 +1594,75 @@ document.addEventListener("click", async (event) => {
       target.textContent = "⌕  Scan Now";
     }
   } else if (action === "alerts") {
-    const rows = ghostAlerts.map((alert) => `<tr><td>${escapeHtml(alert.id)}</td><td><strong>${escapeHtml(alert.name)}</strong></td><td>${escapeHtml(alert.status)}</td><td><b class="risk-${alert.risk.toLowerCase()}">${escapeHtml(alert.risk)}</b></td><td><button class="register-view" data-ghost-action="view" data-ghost-id="${escapeHtml(alert.id)}">View profile</button></td></tr>`).join("");
-    openModal("Recent alerts", `<div class="ghost-alert-register"><div class="modal-stat"><b>${ghostAlerts.length}</b><span>open alerts</span><b>${ghostAlerts.filter((alert) => alert.risk === "High").length}</b><span>high risk</span></div><div class="ghost-modal-table"><table><thead><tr><th>Employee ID</th><th>Name</th><th>Status</th><th>Risk</th><th>Action</th></tr></thead><tbody>${rows}</tbody></table></div></div>`, "Ghost worker detection");
+    const criticalHigh = ghostAlerts.filter((a) => a.risk === "Critical" || a.risk === "High").length;
+    const rows = ghostAlerts.map((alert) => {
+      const score = alert.riskScore != null ? alert.riskScore : "—";
+      const inv = alert.investigationStatus || "Open";
+      return `<tr>
+        <td>${escapeHtml(alert.id)}</td>
+        <td><strong>${escapeHtml(alert.name)}</strong></td>
+        <td>${escapeHtml(alert.status)}</td>
+        <td><b class="${riskBadgeClass(alert.risk)}">${escapeHtml(String(score))} · ${escapeHtml(alert.risk || "—")}</b></td>
+        <td><span class="inv-badge ${investigationBadgeClass(inv)}">${escapeHtml(inv)}</span></td>
+        <td><button class="register-view" data-ghost-action="view" data-ghost-id="${escapeHtml(alert.id)}">View profile</button></td>
+      </tr>`;
+    }).join("");
+    openModal("Recent alerts", `<div class="ghost-alert-register"><div class="modal-stat"><b>${ghostAlerts.length}</b><span>open alerts</span><b>${criticalHigh}</b><span>critical / high</span></div><div class="ghost-modal-table"><table><thead><tr><th>Employee ID</th><th>Name</th><th>Status</th><th>Risk</th><th>Investigation</th><th>Action</th></tr></thead><tbody>${rows}</tbody></table></div></div>`, "Ghost worker detection");
   } else if (action === "view") {
     try {
       await openGhostEmployeeProfile(target.dataset.ghostId);
     } catch (error) {
       showToast(error.message);
     }
+  } else if (action === "export-csv") {
+    if (!hasPrivilege("export") && !hasPrivilege("ghost-workers")) {
+      showToast("Your role does not have export access");
+      return;
+    }
+    exportGhostAlertsCsv();
+  } else if (action === "save-status") {
+    const employeeId = target.dataset.ghostId;
+    const select = document.querySelector(`[data-inv-status="${employeeId}"]`);
+    if (!select) return;
+    target.disabled = true;
+    try {
+      await apiRequest(`/api/ghost/employees/${encodeURIComponent(employeeId)}/status`, {
+        method: "POST",
+        csrf: true,
+        body: JSON.stringify({ status: select.value })
+      });
+      await loadGhostDashboard();
+      await openGhostEmployeeProfile(employeeId);
+      showToast(`Investigation status updated to “${select.value}”`);
+    } catch (error) {
+      showToast(error.message);
+    } finally {
+      target.disabled = false;
+    }
+  }
+});
+
+document.addEventListener("submit", async (event) => {
+  const form = event.target.closest("[data-note-form]");
+  if (!form) return;
+  event.preventDefault();
+  const employeeId = form.dataset.noteForm;
+  const note = form.elements.note.value.trim();
+  if (!note) return;
+  const button = form.querySelector("button[type='submit']");
+  if (button) button.disabled = true;
+  try {
+    await apiRequest(`/api/ghost/employees/${encodeURIComponent(employeeId)}/notes`, {
+      method: "POST",
+      csrf: true,
+      body: JSON.stringify({ note })
+    });
+    await openGhostEmployeeProfile(employeeId);
+    showToast("Investigation note added");
+  } catch (error) {
+    showToast(error.message);
+  } finally {
+    if (button) button.disabled = false;
   }
 });
 
@@ -1358,8 +1674,17 @@ document.addEventListener("click", (event) => {
   const action = target.dataset.action;
   if (action === "close-modal") closeModal();
   if (action === "export") {
-    if (hasPrivilege("export")) exportReport();
-    else showToast("Your role does not have export access");
+    if (!hasPrivilege("export") && !hasPrivilege("ghost-workers")) {
+      showToast("Your role does not have export access");
+      return;
+    }
+    if (document.querySelector("#dashboard-shell")?.classList.contains("ghost-mode") && hasPrivilege("ghost-workers")) {
+      exportGhostAlertsCsv();
+    } else if (hasPrivilege("export")) {
+      exportReport();
+    } else {
+      showToast("Your role does not have export access");
+    }
   }
   if (action === "notifications") openRoleNotifications();
   if (["chart-options", "gender-options", "details"].includes(action) && !hasPrivilege("employees")) {
@@ -1479,3 +1804,11 @@ document.addEventListener("keydown", (event) => {
 modal.addEventListener("click", (event) => {
   if (event.target === modal) closeModal();
 });
+
+// Ghost alert filters
+["#ghost-search", "#ghost-filter-risk", "#ghost-filter-status", "#ghost-filter-department"].forEach((selector) => {
+  const el = document.querySelector(selector);
+  if (!el) return;
+  el.addEventListener(selector === "#ghost-search" ? "input" : "change", () => renderGhostAlerts());
+});
+document.querySelector("#ghost-filter-clear")?.addEventListener("click", () => clearGhostFilters());

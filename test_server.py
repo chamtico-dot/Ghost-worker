@@ -119,6 +119,12 @@ class GhostWorkerServerTests(unittest.TestCase):
         self.assertFalse(employee["biometricVerified"])
         self.assertTrue(employee["payrollActive"])
         self.assertIsNone(employee["photo"])
+        self.assertIn("riskScore", employee)
+        self.assertGreaterEqual(employee["riskScore"], 50)
+        self.assertEqual(employee["investigationStatus"], "Open")
+        self.assertIsInstance(employee["notes"], list)
+        self.assertIsInstance(employee["reasons"], list)
+        self.assertTrue(len(employee["reasons"]) >= 1)
 
     def test_investigator_profile_hides_payroll_status(self):
         self.login("investigator@kiu", "investigate")
@@ -165,6 +171,95 @@ class GhostWorkerServerTests(unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertEqual(len(after["history"]), len(before["history"]) + 1)
         self.assertEqual(len(after["alerts"]), result["summary"]["suspicious"])
+        self.assertTrue(all("riskScore" in alert for alert in after["alerts"]))
+        self.assertTrue(all("investigationStatus" in alert for alert in after["alerts"]))
+
+    def test_risk_score_for_ghost_worker(self):
+        score, risk, status, reasons = server.calculate_risk(
+            type("R", (), {
+                "last_attendance_days": 42,
+                "biometric_verified": 0,
+                "payroll_active": 1,
+            })()
+        )
+        self.assertEqual(score, 75)
+        self.assertEqual(risk, "Critical")
+        self.assertEqual(status, "Ghost Worker")
+        self.assertEqual(len(reasons), 3)
+
+    def test_risk_score_for_inactive_only(self):
+        score, risk, status, reasons = server.calculate_risk(
+            type("R", (), {
+                "last_attendance_days": 35,
+                "biometric_verified": 1,
+                "payroll_active": 1,
+            })()
+        )
+        self.assertEqual(score, 45)
+        self.assertEqual(risk, "Medium")
+        self.assertEqual(status, "Inactive")
+
+    def test_investigation_status_update(self):
+        csrf = self.login("investigator@kiu", "investigate")
+        status, _ = self.request(
+            "POST",
+            "/api/ghost/employees/KIU-0014/status",
+            {"status": "Under Investigation"},
+            csrf,
+        )
+        self.assertEqual(status, 200)
+        status, response = self.request("GET", "/api/ghost/employees/KIU-0014")
+        self.assertEqual(status, 200)
+        self.assertEqual(response["employee"]["investigationStatus"], "Under Investigation")
+        self.assertTrue(any("Under Investigation" in n["note"] for n in response["employee"]["notes"]))
+
+    def test_investigation_status_rejects_invalid(self):
+        csrf = self.login("investigator@kiu", "investigate")
+        status, body = self.request(
+            "POST",
+            "/api/ghost/employees/KIU-0014/status",
+            {"status": "Not A Real Status"},
+            csrf,
+        )
+        self.assertEqual(status, 400)
+
+    def test_limited_role_cannot_change_status(self):
+        csrf = self.login("finance@kiu", "finance123")
+        status, _ = self.request(
+            "POST",
+            "/api/ghost/employees/KIU-0014/status",
+            {"status": "Cleared"},
+            csrf,
+        )
+        self.assertEqual(status, 403)
+
+    def test_add_investigation_note(self):
+        csrf = self.login("investigator@kiu", "investigate")
+        status, body = self.request(
+            "POST",
+            "/api/ghost/employees/KIU-0014/notes",
+            {"note": "Spoke with department head. No activity confirmed."},
+            csrf,
+        )
+        self.assertEqual(status, 200)
+        self.assertEqual(body["note"]["note"], "Spoke with department head. No activity confirmed.")
+        status, response = self.request("GET", "/api/ghost/employees/KIU-0014")
+        self.assertEqual(status, 200)
+        notes = response["employee"]["notes"]
+        self.assertTrue(any("department head" in n["note"] for n in notes))
+
+    def test_status_preserved_across_rescan(self):
+        csrf = self.login("investigator@kiu", "investigate")
+        self.request(
+            "POST",
+            "/api/ghost/employees/KIU-0014/status",
+            {"status": "Confirmed Ghost"},
+            csrf,
+        )
+        self.request("POST", "/api/ghost/scan", {}, csrf)
+        status, response = self.request("GET", "/api/ghost/employees/KIU-0014")
+        self.assertEqual(status, 200)
+        self.assertEqual(response["employee"]["investigationStatus"], "Confirmed Ghost")
 
 
 class ThreadlessTestServer(server.ThreadingHTTPServer):

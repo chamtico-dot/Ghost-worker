@@ -109,7 +109,16 @@
         </div>
         <div class="ghost-bottom-grid">
           <article class="ghost-panel ghost-statistics"><h2>Detection Statistics</h2><div class="ghost-donut-wrap"><div class="ghost-donut"><span>94.4%<small>Valid</small></span></div><div><p><i class="valid-dot"></i> Valid Workers <b>234 (94.4%)</b></p><p><i class="ghost-dot"></i> Ghost Workers <b>14 (5.6%)</b></p></div></div></article>
-          <article class="ghost-panel ghost-alerts"><div class="ghost-panel-title"><h2>🔔 Recent Alerts</h2><button type="button" data-ghost-action="alerts">View All →</button></div><div class="ghost-table-wrap"><table class="ghost-table"><thead><tr><th>#</th><th>Employee ID</th><th>Name</th><th>Status</th><th>Risk Level</th><th>Detected At</th><th>Action</th></tr></thead><tbody><tr><td>1</td><td>KIU-0014</td><td>John Doe</td><td>Ghost Worker</td><td><b class="risk-high">High</b></td><td>Nov 13, 2026 14:32</td><td><button data-ghost-action="view" data-ghost-name="John Doe">View</button></td></tr><tr><td>2</td><td>KIU-0078</td><td>Mary Atieno</td><td>Inactive</td><td><b class="risk-medium">Medium</b></td><td>Nov 13, 2026 14:20</td><td><button data-ghost-action="view" data-ghost-name="Mary Atieno">View</button></td></tr><tr><td>3</td><td>KIU-0121</td><td>Samuel Okello</td><td>Ghost Worker</td><td><b class="risk-high">High</b></td><td>Nov 13, 2026 14:18</td><td><button data-ghost-action="view" data-ghost-name="Samuel Okello">View</button></td></tr></tbody></table></div></article>
+          <article class="ghost-panel ghost-alerts"><div class="ghost-panel-title"><h2>🔔 Recent Alerts</h2><div class="ghost-alert-actions"><button type="button" data-ghost-action="export-csv" class="ghost-export-btn">↥ Export CSV</button><button type="button" data-ghost-action="alerts">View All →</button></div></div>
+            <div class="ghost-filters" id="ghost-filters">
+              <label class="ghost-filter-search"><span class="visually-hidden">Search alerts</span><input type="search" id="ghost-search" placeholder="Search name or ID" autocomplete="off" /></label>
+              <label>Risk <select id="ghost-filter-risk" aria-label="Filter by risk"><option value="all">All levels</option><option value="Critical">Critical</option><option value="High">High</option><option value="Medium">Medium</option><option value="Low">Low</option></select></label>
+              <label>Investigation <select id="ghost-filter-status" aria-label="Filter by investigation status"><option value="all">All statuses</option><option value="Open">Open</option><option value="Under Investigation">Under Investigation</option><option value="Confirmed Ghost">Confirmed Ghost</option><option value="Cleared">Cleared</option><option value="False Positive">False Positive</option></select></label>
+              <label>Department <select id="ghost-filter-department" aria-label="Filter by department"><option value="all">All departments</option></select></label>
+              <button type="button" class="ghost-filter-clear" id="ghost-filter-clear" hidden>Clear filters</button>
+            </div>
+            <p class="ghost-filter-summary" id="ghost-filter-summary" hidden></p>
+            <div class="ghost-table-wrap"><table class="ghost-table"><thead><tr><th>#</th><th>Employee ID</th><th>Name</th><th>Status</th><th>Risk Score</th><th>Investigation</th><th>Detected At</th><th>Action</th></tr></thead><tbody></tbody></table></div></article>
         </div>
       </section>
 

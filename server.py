@@ -24,6 +24,14 @@ SESSION_SECONDS = 8 * 60 * 60
 REMEMBER_SESSION_SECONDS = 30 * 24 * 60 * 60
 PASSWORD_ITERATIONS = 310_000
 
+INVESTIGATION_STATUSES = {
+    "Open",
+    "Under Investigation",
+    "Confirmed Ghost",
+    "Cleared",
+    "False Positive",
+}
+
 ROLE_PRIVILEGES = {
     "Administrator": ["dashboard", "projects", "employees", "payroll-finance", "attendance", "ghost-workers", "approve", "investigate", "configure", "export", "user-admin"],
     "Payroll Administrator": ["dashboard", "employees", "payroll-finance", "attendance", "export"],
@@ -96,50 +104,158 @@ def connect_db():
         connection.close()
 
 
+def risk_level_from_score(score: int) -> str:
+    if score >= 75:
+        return "Critical"
+    if score >= 50:
+        return "High"
+    if score >= 25:
+        return "Medium"
+    return "Low"
+
+
+def _row_get(row, *keys, default=None):
+    """Read a value from a sqlite Row, mapping, or simple object."""
+    for key in keys:
+        value = None
+        try:
+            value = row[key]
+        except (KeyError, IndexError, TypeError):
+            value = getattr(row, key, None)
+        if value is not None:
+            return value
+    return default
+
+
+def calculate_risk(employee) -> tuple[int, str, str, list[str]]:
+    """Return (score 0-100, risk_level, flag_status, reasons)."""
+    days = int(_row_get(employee, "last_attendance_days", "lastAttendanceDays", default=0) or 0)
+    biometric_ok = bool(_row_get(employee, "biometric_verified", "biometricVerified", default=0))
+    payroll_active = bool(_row_get(employee, "payroll_active", "payrollActive", default=0))
+
+    score = 0
+    reasons: list[str] = []
+
+    if days >= 60:
+        score += 40
+        reasons.append(f"No attendance activity for {days} days")
+    elif days >= 30:
+        score += 25
+        reasons.append(f"No attendance activity for {days} days")
+
+    if not biometric_ok:
+        score += 30
+        reasons.append("Biometric verification failed")
+
+    if payroll_active and (days >= 30 or not biometric_ok):
+        score += 20
+        reasons.append("Payroll remains active while activity signals are weak")
+
+    score = min(100, score)
+
+    if not reasons:
+        return 0, "Low", "Active", []
+
+    # Flag type: stronger label when biometric fails and payroll is still paying
+    if not biometric_ok and payroll_active:
+        flag_status = "Ghost Worker"
+    else:
+        flag_status = "Inactive"
+
+    return score, risk_level_from_score(score), flag_status, reasons
+
+
+def ensure_schema(db: sqlite3.Connection) -> None:
+    """Create tables and migrate older alert schemas in place."""
+    db.executescript("""
+        CREATE TABLE IF NOT EXISTS users (
+            email TEXT PRIMARY KEY,
+            password_hash TEXT NOT NULL,
+            name TEXT NOT NULL,
+            role TEXT NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS sessions (
+            token_hash TEXT PRIMARY KEY,
+            email TEXT NOT NULL REFERENCES users(email) ON DELETE CASCADE,
+            csrf_token TEXT NOT NULL,
+            expires_at TEXT NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS employees (
+            employee_id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            department TEXT NOT NULL,
+            last_attendance_days INTEGER NOT NULL,
+            biometric_verified INTEGER NOT NULL,
+            payroll_active INTEGER NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS alerts (
+            employee_id TEXT PRIMARY KEY REFERENCES employees(employee_id) ON DELETE CASCADE,
+            status TEXT NOT NULL,
+            risk TEXT NOT NULL,
+            risk_score INTEGER NOT NULL DEFAULT 0,
+            investigation_status TEXT NOT NULL DEFAULT 'Open',
+            detected_at TEXT NOT NULL,
+            details TEXT NOT NULL,
+            updated_at TEXT,
+            updated_by TEXT
+        );
+        CREATE TABLE IF NOT EXISTS investigation_notes (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            employee_id TEXT NOT NULL REFERENCES employees(employee_id) ON DELETE CASCADE,
+            author_email TEXT NOT NULL,
+            author_name TEXT NOT NULL,
+            note TEXT NOT NULL,
+            created_at TEXT NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS employee_photos (
+            employee_id TEXT PRIMARY KEY REFERENCES employees(employee_id) ON DELETE CASCADE,
+            mime_type TEXT NOT NULL,
+            image_data BLOB NOT NULL,
+            updated_at TEXT NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS scan_history (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            scanned_at TEXT NOT NULL,
+            total INTEGER NOT NULL,
+            active INTEGER NOT NULL,
+            suspicious INTEGER NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS attendance_records (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            employee_id TEXT NOT NULL REFERENCES employees(employee_id) ON DELETE CASCADE,
+            location TEXT NOT NULL,
+            status TEXT NOT NULL,
+            present_days INTEGER NOT NULL,
+            absent_days INTEGER NOT NULL,
+            leave_days INTEGER NOT NULL,
+            overtime_hours INTEGER NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS payroll_records (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            payroll_id TEXT NOT NULL UNIQUE,
+            employee_id TEXT NOT NULL REFERENCES employees(employee_id) ON DELETE CASCADE,
+            period TEXT NOT NULL,
+            amount INTEGER NOT NULL,
+            deductions INTEGER NOT NULL,
+            status TEXT NOT NULL
+        );
+    """)
+
+    # Migrate older alert tables that lack the new columns
+    columns = {row["name"] for row in db.execute("PRAGMA table_info(alerts)").fetchall()}
+    if "risk_score" not in columns:
+        db.execute("ALTER TABLE alerts ADD COLUMN risk_score INTEGER NOT NULL DEFAULT 0")
+    if "investigation_status" not in columns:
+        db.execute("ALTER TABLE alerts ADD COLUMN investigation_status TEXT NOT NULL DEFAULT 'Open'")
+    if "updated_at" not in columns:
+        db.execute("ALTER TABLE alerts ADD COLUMN updated_at TEXT")
+    if "updated_by" not in columns:
+        db.execute("ALTER TABLE alerts ADD COLUMN updated_by TEXT")
+
+
 def init_db() -> None:
     with connect_db() as db:
-        db.executescript("""
-            CREATE TABLE IF NOT EXISTS users (
-                email TEXT PRIMARY KEY,
-                password_hash TEXT NOT NULL,
-                name TEXT NOT NULL,
-                role TEXT NOT NULL
-            );
-            CREATE TABLE IF NOT EXISTS sessions (
-                token_hash TEXT PRIMARY KEY,
-                email TEXT NOT NULL REFERENCES users(email) ON DELETE CASCADE,
-                csrf_token TEXT NOT NULL,
-                expires_at TEXT NOT NULL
-            );
-            CREATE TABLE IF NOT EXISTS employees (
-                employee_id TEXT PRIMARY KEY,
-                name TEXT NOT NULL,
-                department TEXT NOT NULL,
-                last_attendance_days INTEGER NOT NULL,
-                biometric_verified INTEGER NOT NULL,
-                payroll_active INTEGER NOT NULL
-            );
-            CREATE TABLE IF NOT EXISTS alerts (
-                employee_id TEXT PRIMARY KEY REFERENCES employees(employee_id) ON DELETE CASCADE,
-                status TEXT NOT NULL,
-                risk TEXT NOT NULL,
-                detected_at TEXT NOT NULL,
-                details TEXT NOT NULL
-            );
-            CREATE TABLE IF NOT EXISTS employee_photos (
-                employee_id TEXT PRIMARY KEY REFERENCES employees(employee_id) ON DELETE CASCADE,
-                mime_type TEXT NOT NULL,
-                image_data BLOB NOT NULL,
-                updated_at TEXT NOT NULL
-            );
-            CREATE TABLE IF NOT EXISTS scan_history (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                scanned_at TEXT NOT NULL,
-                total INTEGER NOT NULL,
-                active INTEGER NOT NULL,
-                suspicious INTEGER NOT NULL
-            );
-        """)
+        ensure_schema(db)
         if db.execute("SELECT COUNT(*) FROM users").fetchone()[0] == 0:
             db.executemany(
                 "INSERT INTO users (email, password_hash, name, role) VALUES (?, ?, ?, ?)",
@@ -157,30 +273,121 @@ def init_db() -> None:
                     "INSERT INTO scan_history (scanned_at, total, active, suspicious) VALUES (?, ?, ?, ?)",
                     (scanned_at, total, total - suspicious, suspicious),
                 )
+        seed_attendance_and_payroll(db)
+
+
+def seed_attendance_and_payroll(db: sqlite3.Connection) -> None:
+    """Populate sample attendance and payroll rows from employees if empty."""
+    employees = db.execute("SELECT employee_id, name, department, last_attendance_days, payroll_active FROM employees ORDER BY employee_id").fetchall()
+    if not employees:
+        return
+
+    if db.execute("SELECT COUNT(*) FROM attendance_records").fetchone()[0] == 0:
+        locations = ["Head Office", "Branch A", "Branch B", "Main Campus"]
+        for index, emp in enumerate(employees):
+            days = int(emp["last_attendance_days"])
+            if days >= 30:
+                status = "Absent"
+                present, absent, leave = 12, min(10, days // 5), 2
+            elif days >= 7:
+                status = "Leave"
+                present, absent, leave = 18, 1, 4
+            else:
+                status = "Present"
+                present, absent, leave = 22, 1, 0
+            overtime = 8 + (index % 9)
+            location = locations[index % len(locations)]
+            db.execute(
+                """
+                INSERT INTO attendance_records (
+                    employee_id, location, status, present_days, absent_days, leave_days, overtime_hours
+                ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                """,
+                (emp["employee_id"], location, status, present, absent, leave, overtime),
+            )
+
+    if db.execute("SELECT COUNT(*) FROM payroll_records").fetchone()[0] == 0:
+        periods = ["June 2026", "May 2026", "April 2026"]
+        base_amounts = {
+            "Finance": 3250000,
+            "Human Resources": 2890000,
+            "ICT": 3100000,
+            "Administration": 2750000,
+            "Engineering": 3200000,
+            "Academic staff": 3400000,
+            "Internal Audit": 3000000,
+            "Compliance": 2950000,
+        }
+        counter = 1
+        for period_index, period in enumerate(periods):
+            for emp in employees:
+                amount = base_amounts.get(emp["department"], 2800000) - (period_index * 70000)
+                deductions = int(amount * 0.13)
+                # Pending if payroll inactive or first pending sample
+                status = "Paid"
+                if not emp["payroll_active"]:
+                    status = "Pending"
+                elif counter in (4, 13):
+                    status = "Pending"
+                payroll_id = f"PAY-{counter:03d}"
+                db.execute(
+                    """
+                    INSERT INTO payroll_records (
+                        payroll_id, employee_id, period, amount, deductions, status
+                    ) VALUES (?, ?, ?, ?, ?, ?)
+                    """,
+                    (payroll_id, emp["employee_id"], period, amount, deductions, status),
+                )
+                counter += 1
 
 
 def refresh_alerts(db: sqlite3.Connection, record_history: bool) -> dict:
     employees = db.execute("SELECT * FROM employees ORDER BY employee_id").fetchall()
     detected_at = now_utc().isoformat()
+
+    # Preserve investigation progress across rescans
+    existing = {
+        row["employee_id"]: dict(row)
+        for row in db.execute(
+            "SELECT employee_id, investigation_status, updated_at, updated_by FROM alerts"
+        ).fetchall()
+    }
+
     alerts = []
     for employee in employees:
-        stale = employee["last_attendance_days"] >= 30
-        biometric_failed = not employee["biometric_verified"]
-        if not (stale or biometric_failed):
+        score, risk, flag_status, reasons = calculate_risk(employee)
+        if score == 0:
             continue
-        status = "Ghost Worker" if biometric_failed and employee["payroll_active"] else "Inactive"
-        risk = "High" if biometric_failed or employee["last_attendance_days"] >= 60 else "Medium"
-        signals = []
-        if stale:
-            signals.append(f"No attendance activity for {employee['last_attendance_days']} days")
-        if biometric_failed:
-            signals.append("biometric verification failed")
-        if employee["payroll_active"] and (stale or biometric_failed):
-            signals.append("payroll remains active")
-        alerts.append((employee["employee_id"], status, risk, detected_at, "; ".join(signals) + "."))
+
+        previous = existing.get(employee["employee_id"], {})
+        inv_status = previous.get("investigation_status") or "Open"
+        if inv_status not in INVESTIGATION_STATUSES:
+            inv_status = "Open"
+
+        alerts.append(
+            (
+                employee["employee_id"],
+                flag_status,
+                risk,
+                score,
+                inv_status,
+                detected_at,
+                "; ".join(reasons) + ".",
+                previous.get("updated_at"),
+                previous.get("updated_by"),
+            )
+        )
 
     db.execute("DELETE FROM alerts")
-    db.executemany("INSERT INTO alerts VALUES (?, ?, ?, ?, ?)", alerts)
+    db.executemany(
+        """
+        INSERT INTO alerts (
+            employee_id, status, risk, risk_score, investigation_status,
+            detected_at, details, updated_at, updated_by
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        alerts,
+    )
     total = len(employees)
     summary = {"total": total, "active": total - len(alerts), "suspicious": len(alerts)}
     if record_history:
@@ -202,8 +409,22 @@ def public_user(row: sqlite3.Row) -> dict:
     }
 
 
+def fetch_notes(db: sqlite3.Connection, employee_id: str) -> list[dict]:
+    rows = db.execute(
+        """
+        SELECT id, author_email AS authorEmail, author_name AS authorName,
+               note, created_at AS createdAt
+        FROM investigation_notes
+        WHERE employee_id = ?
+        ORDER BY id DESC
+        """,
+        (employee_id,),
+    ).fetchall()
+    return [dict(row) for row in rows]
+
+
 class GhostWorkerHandler(BaseHTTPRequestHandler):
-    server_version = "GhostWorker/1.0"
+    server_version = "GhostWorker/1.1"
 
     def log_message(self, fmt: str, *args) -> None:
         print(f"{self.log_date_time_string()} {self.address_string()} {fmt % args}")
@@ -223,7 +444,11 @@ class GhostWorkerHandler(BaseHTTPRequestHandler):
     def send_security_headers(self) -> None:
         self.send_header("X-Content-Type-Options", "nosniff")
         self.send_header("Referrer-Policy", "same-origin")
-        self.send_header("Content-Security-Policy", "default-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'; base-uri 'self'; frame-ancestors 'none'")
+        self.send_header(
+            "Content-Security-Policy",
+            "default-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; "
+            "script-src 'self'; connect-src 'self'; base-uri 'self'; frame-ancestors 'none'",
+        )
 
     def read_json(self) -> dict:
         length = int(self.headers.get("Content-Length", "0"))
@@ -250,11 +475,14 @@ class GhostWorkerHandler(BaseHTTPRequestHandler):
             return None
         token_hash = hashlib.sha256(morsel.value.encode("utf-8")).hexdigest()
         with connect_db() as db:
-            row = db.execute("""
+            row = db.execute(
+                """
                 SELECT users.email, users.name, users.role, sessions.csrf_token, sessions.expires_at
                 FROM sessions JOIN users ON users.email = sessions.email
                 WHERE sessions.token_hash = ?
-            """, (token_hash,)).fetchone()
+                """,
+                (token_hash,),
+            ).fetchone()
             if not row:
                 return None
             if datetime.fromisoformat(row["expires_at"]) <= now_utc():
@@ -294,9 +522,9 @@ class GhostWorkerHandler(BaseHTTPRequestHandler):
         mime_type = self.headers.get("Content-Type", "").split(";", 1)[0].lower()
         image_data = self.rfile.read(length)
         valid_image = (
-            mime_type == "image/jpeg" and image_data.startswith(b"\xff\xd8\xff") or
-            mime_type == "image/png" and image_data.startswith(b"\x89PNG\r\n\x1a\n") or
-            mime_type == "image/webp" and image_data.startswith(b"RIFF") and image_data[8:12] == b"WEBP"
+            mime_type == "image/jpeg" and image_data.startswith(b"\xff\xd8\xff")
+            or mime_type == "image/png" and image_data.startswith(b"\x89PNG\r\n\x1a\n")
+            or mime_type == "image/webp" and image_data.startswith(b"RIFF") and image_data[8:12] == b"WEBP"
         )
         if not valid_image:
             self.send_json(415, {"error": "Use a valid JPEG, PNG, or WebP image"})
@@ -305,14 +533,17 @@ class GhostWorkerHandler(BaseHTTPRequestHandler):
             if not db.execute("SELECT 1 FROM employees WHERE employee_id = ?", (employee_id,)).fetchone():
                 self.send_json(404, {"error": "Employee record not found"})
                 return
-            db.execute("""
+            db.execute(
+                """
                 INSERT INTO employee_photos (employee_id, mime_type, image_data, updated_at)
                 VALUES (?, ?, ?, ?)
                 ON CONFLICT(employee_id) DO UPDATE SET
                     mime_type = excluded.mime_type,
                     image_data = excluded.image_data,
                     updated_at = excluded.updated_at
-            """, (employee_id, mime_type, image_data, now_utc().isoformat()))
+                """,
+                (employee_id, mime_type, image_data, now_utc().isoformat()),
+            )
         self.send_json(200, {"ok": True})
 
     def require_csrf(self, session: dict) -> bool:
@@ -331,23 +562,38 @@ class GhostWorkerHandler(BaseHTTPRequestHandler):
             else:
                 self.send_json(200, {"user": session["user"], "csrfToken": session["csrf"]})
             return
+
         if path == "/api/ghost/dashboard":
             if not self.require_privilege("ghost-workers"):
                 return
             with connect_db() as db:
                 summary = refresh_alerts(db, record_history=False)
-                alerts = [dict(row) for row in db.execute("""
-                    SELECT employee_id AS id, employees.name, alerts.status, alerts.risk,
-                           alerts.detected_at AS detected, alerts.details
-                    FROM alerts JOIN employees USING (employee_id)
-                    ORDER BY CASE alerts.risk WHEN 'High' THEN 0 ELSE 1 END, alerts.detected_at DESC
-                """).fetchall()]
-                history = [dict(row) for row in db.execute("""
-                    SELECT scanned_at AS scannedAt, total, active, suspicious
-                    FROM scan_history ORDER BY id DESC LIMIT 90
-                """).fetchall()]
+                alerts = [
+                    dict(row)
+                    for row in db.execute(
+                        """
+                        SELECT employee_id AS id, employees.name, employees.department,
+                               alerts.status, alerts.risk, alerts.risk_score AS riskScore,
+                               alerts.investigation_status AS investigationStatus,
+                               alerts.detected_at AS detected, alerts.details,
+                               alerts.updated_at AS updatedAt, alerts.updated_by AS updatedBy
+                        FROM alerts JOIN employees USING (employee_id)
+                        ORDER BY alerts.risk_score DESC, alerts.detected_at DESC
+                        """
+                    ).fetchall()
+                ]
+                history = [
+                    dict(row)
+                    for row in db.execute(
+                        """
+                        SELECT scanned_at AS scannedAt, total, active, suspicious
+                        FROM scan_history ORDER BY id DESC LIMIT 90
+                        """
+                    ).fetchall()
+                ]
             self.send_json(200, {"summary": summary, "alerts": alerts, "history": list(reversed(history))})
             return
+
         if path.startswith("/api/ghost/employees/"):
             session = self.require_any_privilege({"employees", "ghost-workers"})
             if not session:
@@ -357,51 +603,172 @@ class GhostWorkerHandler(BaseHTTPRequestHandler):
                 self.send_json(404, {"error": "Employee record not found"})
                 return
             with connect_db() as db:
-                row = db.execute("""
+                row = db.execute(
+                    """
                     SELECT employees.employee_id AS id, employees.name, employees.department,
                            employees.last_attendance_days AS lastAttendanceDays,
                            employees.biometric_verified AS biometricVerified,
                            employees.payroll_active AS payrollActive,
-                           alerts.status, alerts.risk, alerts.detected_at AS detected, alerts.details,
+                           alerts.status, alerts.risk, alerts.risk_score AS riskScore,
+                           alerts.investigation_status AS investigationStatus,
+                           alerts.detected_at AS detected, alerts.details,
+                           alerts.updated_at AS updatedAt, alerts.updated_by AS updatedBy,
                            employee_photos.mime_type AS photoMime, employee_photos.image_data AS photoData
                     FROM employees
                     LEFT JOIN alerts USING (employee_id)
                     LEFT JOIN employee_photos USING (employee_id)
                     WHERE employees.employee_id = ?
-                """, (employee_id,)).fetchone()
+                    """,
+                    (employee_id,),
+                ).fetchone()
+                notes = fetch_notes(db, employee_id) if row else []
             if not row:
                 self.send_json(404, {"error": "Employee record not found"})
                 return
             photo = None
             if row["photoData"] is not None:
                 photo = f"data:{row['photoMime']};base64,{base64.b64encode(row['photoData']).decode('ascii')}"
+
+            # Live score even if not currently in alerts table
+            score, risk, flag_status, reasons = calculate_risk(row)
             employee = {
                 "id": row["id"],
                 "name": row["name"],
                 "department": row["department"],
                 "lastAttendanceDays": row["lastAttendanceDays"],
                 "biometricVerified": bool(row["biometricVerified"]),
-                "status": row["status"] or "Active",
-                "risk": row["risk"],
+                "status": row["status"] or flag_status or "Active",
+                "risk": row["risk"] or risk,
+                "riskScore": row["riskScore"] if row["riskScore"] is not None else score,
+                "investigationStatus": row["investigationStatus"] or "Open",
                 "detected": row["detected"],
-                "details": row["details"] or "No active review alerts for this employee.",
+                "details": row["details"] or ("; ".join(reasons) + "." if reasons else "No active review alerts for this employee."),
+                "reasons": reasons,
+                "updatedAt": row["updatedAt"],
+                "updatedBy": row["updatedBy"],
                 "photo": photo,
+                "notes": notes,
             }
             if "payroll-finance" in session["user"]["privileges"]:
                 employee["payrollActive"] = bool(row["payrollActive"])
             self.send_json(200, {"employee": employee})
             return
+
         if path == "/api/employees":
             if not self.require_privilege("employees"):
                 return
             with connect_db() as db:
-                rows = [dict(row) for row in db.execute("""
-                    SELECT employee_id AS id, name, department, last_attendance_days AS lastAttendanceDays,
-                           biometric_verified AS biometricVerified, payroll_active AS payrollActive
+                rows = []
+                for row in db.execute(
+                    """
+                    SELECT employee_id AS id, name, department,
+                           last_attendance_days AS lastAttendanceDays,
+                           biometric_verified AS biometricVerified,
+                           payroll_active AS payrollActive
                     FROM employees ORDER BY employee_id
-                """).fetchall()]
-            self.send_json(200, {"employees": rows})
+                    """
+                ).fetchall():
+                    item = dict(row)
+                    item["biometricVerified"] = bool(item["biometricVerified"])
+                    item["payrollActive"] = bool(item["payrollActive"])
+                    # Demo-friendly derived fields for the directory UI
+                    item["email"] = f"{item['id'].lower().replace('-', '.')}@kiu.ac.ug"
+                    item["designation"] = {
+                        "Finance": "Finance Officer",
+                        "Human Resources": "HR Officer",
+                        "ICT": "Systems Analyst",
+                        "Administration": "Admin Officer",
+                        "Engineering": "Engineer",
+                        "Academic staff": "Lecturer",
+                        "Internal Audit": "Auditor",
+                        "Compliance": "Compliance Officer",
+                    }.get(item["department"], "Staff")
+                    days = int(item["lastAttendanceDays"])
+                    if days >= 30:
+                        item["status"] = "Inactive"
+                    elif days >= 7:
+                        item["status"] = "On leave"
+                    else:
+                        item["status"] = "Active"
+                    rows.append(item)
+                departments = sorted({r["department"] for r in rows})
+                summary = {
+                    "total": len(rows),
+                    "active": sum(1 for r in rows if r["status"] == "Active"),
+                    "onLeave": sum(1 for r in rows if r["status"] == "On leave"),
+                    "departments": len(departments),
+                }
+            self.send_json(200, {"employees": rows, "summary": summary, "departments": departments})
             return
+
+        if path == "/api/attendance":
+            session = self.require_any_privilege({"attendance", "employees", "ghost-workers"})
+            if not session:
+                return
+            with connect_db() as db:
+                rows = [
+                    dict(row)
+                    for row in db.execute(
+                        """
+                        SELECT attendance_records.employee_id AS id,
+                               employees.name,
+                               employees.department,
+                               attendance_records.location,
+                               attendance_records.status,
+                               attendance_records.present_days AS present,
+                               attendance_records.absent_days AS absent,
+                               attendance_records.leave_days AS leave,
+                               attendance_records.overtime_hours AS overtime
+                        FROM attendance_records
+                        JOIN employees USING (employee_id)
+                        ORDER BY attendance_records.employee_id
+                        """
+                    ).fetchall()
+                ]
+                total = len(rows)
+                present = sum(1 for r in rows if r["status"] == "Present")
+                absent = sum(1 for r in rows if r["status"] == "Absent")
+                leave = sum(1 for r in rows if r["status"] == "Leave")
+                overtime = sum(int(r["overtime"]) for r in rows)
+                rate = round((present / total * 100), 1) if total else 0.0
+                summary = {
+                    "total": total,
+                    "present": present,
+                    "absent": absent,
+                    "leave": leave,
+                    "overtime": overtime,
+                    "attendanceRate": rate,
+                }
+            self.send_json(200, {"records": rows, "summary": summary})
+            return
+
+        if path == "/api/payroll":
+            session = self.require_any_privilege({"payroll-finance", "export"})
+            if not session:
+                return
+            with connect_db() as db:
+                rows = [
+                    dict(row)
+                    for row in db.execute(
+                        """
+                        SELECT payroll_records.payroll_id AS id,
+                               employees.name,
+                               employees.department,
+                               payroll_records.period,
+                               payroll_records.amount,
+                               payroll_records.deductions,
+                               payroll_records.status
+                        FROM payroll_records
+                        JOIN employees USING (employee_id)
+                        ORDER BY payroll_records.period DESC, payroll_records.payroll_id
+                        """
+                    ).fetchall()
+                ]
+                periods = sorted({r["period"] for r in rows}, reverse=True)
+                departments = sorted({r["department"] for r in rows})
+            self.send_json(200, {"records": rows, "periods": periods, "departments": departments})
+            return
+
         if path.startswith("/api/"):
             self.send_json(404, {"error": "API route not found"})
             return
@@ -412,9 +779,10 @@ class GhostWorkerHandler(BaseHTTPRequestHandler):
         if not self.request_origin_is_local():
             self.send_json(403, {"error": "Cross-origin request rejected"})
             return
+
         photo_prefix = "/api/employees/"
         if path.startswith(photo_prefix) and path.endswith("/photo"):
-            employee_id = path[len(photo_prefix):-len("/photo")]
+            employee_id = path[len(photo_prefix) : -len("/photo")]
             if not employee_id or "/" in employee_id:
                 self.send_json(404, {"error": "Employee record not found"})
                 return
@@ -423,6 +791,7 @@ class GhostWorkerHandler(BaseHTTPRequestHandler):
                 return
             self.save_employee_photo(employee_id)
             return
+
         try:
             payload = self.read_json()
         except (ValueError, json.JSONDecodeError, UnicodeDecodeError):
@@ -455,11 +824,13 @@ class GhostWorkerHandler(BaseHTTPRequestHandler):
             return
         if not self.require_csrf(session):
             return
+
         if path == "/api/logout":
             with connect_db() as db:
                 db.execute("DELETE FROM sessions WHERE token_hash = ?", (session["token_hash"],))
             self.send_json(200, {"ok": True}, {"Set-Cookie": "gw_session=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0"})
             return
+
         if path == "/api/ghost/scan":
             if "investigate" not in session["user"]["privileges"] and "configure" not in session["user"]["privileges"]:
                 self.send_json(403, {"error": "Your role is not permitted to run scans"})
@@ -468,6 +839,118 @@ class GhostWorkerHandler(BaseHTTPRequestHandler):
                 summary = refresh_alerts(db, record_history=True)
             self.send_json(200, {"summary": summary, "message": "Sample employee records scanned"})
             return
+
+        # Update investigation status
+        if path.startswith("/api/ghost/employees/") and path.endswith("/status"):
+            if "investigate" not in session["user"]["privileges"] and "configure" not in session["user"]["privileges"]:
+                self.send_json(403, {"error": "Your role is not permitted to update investigation status"})
+                return
+            employee_id = path[len("/api/ghost/employees/") : -len("/status")]
+            if not employee_id or "/" in employee_id:
+                self.send_json(404, {"error": "Employee record not found"})
+                return
+            new_status = str(payload.get("status", "")).strip()
+            if new_status not in INVESTIGATION_STATUSES:
+                self.send_json(400, {"error": "Invalid investigation status"})
+                return
+            with connect_db() as db:
+                exists = db.execute("SELECT 1 FROM employees WHERE employee_id = ?", (employee_id,)).fetchone()
+                if not exists:
+                    self.send_json(404, {"error": "Employee record not found"})
+                    return
+                alert = db.execute("SELECT 1 FROM alerts WHERE employee_id = ?", (employee_id,)).fetchone()
+                now = now_utc().isoformat()
+                actor = session["user"]["name"]
+                if alert:
+                    db.execute(
+                        """
+                        UPDATE alerts
+                        SET investigation_status = ?, updated_at = ?, updated_by = ?
+                        WHERE employee_id = ?
+                        """,
+                        (new_status, now, actor, employee_id),
+                    )
+                else:
+                    # Create a minimal alert row so status can be tracked
+                    emp = db.execute("SELECT * FROM employees WHERE employee_id = ?", (employee_id,)).fetchone()
+                    score, risk, flag_status, reasons = calculate_risk(emp)
+                    db.execute(
+                        """
+                        INSERT INTO alerts (
+                            employee_id, status, risk, risk_score, investigation_status,
+                            detected_at, details, updated_at, updated_by
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        """,
+                        (
+                            employee_id,
+                            flag_status if score else "Active",
+                            risk,
+                            score,
+                            new_status,
+                            now,
+                            "; ".join(reasons) + "." if reasons else "Manual investigation opened.",
+                            now,
+                            actor,
+                        ),
+                    )
+                # Auto-add a system note for the status change
+                db.execute(
+                    """
+                    INSERT INTO investigation_notes (employee_id, author_email, author_name, note, created_at)
+                    VALUES (?, ?, ?, ?, ?)
+                    """,
+                    (
+                        employee_id,
+                        session["user"]["email"],
+                        actor,
+                        f"Investigation status changed to “{new_status}”.",
+                        now,
+                    ),
+                )
+            self.send_json(200, {"ok": True, "status": new_status})
+            return
+
+        # Add investigation note
+        if path.startswith("/api/ghost/employees/") and path.endswith("/notes"):
+            if "investigate" not in session["user"]["privileges"] and "configure" not in session["user"]["privileges"]:
+                self.send_json(403, {"error": "Your role is not permitted to add investigation notes"})
+                return
+            employee_id = path[len("/api/ghost/employees/") : -len("/notes")]
+            if not employee_id or "/" in employee_id:
+                self.send_json(404, {"error": "Employee record not found"})
+                return
+            note_text = str(payload.get("note", "")).strip()
+            if not note_text or len(note_text) > 2000:
+                self.send_json(400, {"error": "Note must be between 1 and 2000 characters"})
+                return
+            with connect_db() as db:
+                if not db.execute("SELECT 1 FROM employees WHERE employee_id = ?", (employee_id,)).fetchone():
+                    self.send_json(404, {"error": "Employee record not found"})
+                    return
+                now = now_utc().isoformat()
+                db.execute(
+                    """
+                    INSERT INTO investigation_notes (employee_id, author_email, author_name, note, created_at)
+                    VALUES (?, ?, ?, ?, ?)
+                    """,
+                    (employee_id, session["user"]["email"], session["user"]["name"], note_text, now),
+                )
+                note_id = db.execute("SELECT last_insert_rowid()").fetchone()[0]
+            self.send_json(
+                200,
+                {
+                    "ok": True,
+                    "note": {
+                        "id": note_id,
+                        "authorEmail": session["user"]["email"],
+                        "authorName": session["user"]["name"],
+                        "note": note_text,
+                        "createdAt": now,
+                    },
+                },
+            )
+            return
+
         self.send_json(404, {"error": "API route not found"})
 
     def serve_static(self, path: str) -> None:

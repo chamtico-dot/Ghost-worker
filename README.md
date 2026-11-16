@@ -35,6 +35,45 @@ The server issues a random session token in an `HttpOnly`, `SameSite=Strict` coo
 
 The sample scan evaluates attendance recency, biometric verification, and payroll-active status for the seeded sample employees. Alerts and scan history are persisted to the local database. These are synthetic records and illustrative rules, not a validated fraud-detection model. Other dashboard sections remain front-end demo views; they are not yet backed by protected APIs and must not be used for operational employee or payroll data.
 
+## Risk scoring & investigation workflow
+
+Each flagged employee receives a **0–100 risk score**:
+
+| Points | Signal |
+| --- | --- |
+| +40 | No attendance for ≥ 60 days |
+| +25 | No attendance for 30–59 days |
+| +30 | Biometric verification failed |
+| +20 | Payroll still active while flagged |
+
+Levels: **Low** (0–24), **Medium** (25–49), **High** (50–74), **Critical** (75–100).
+
+Investigation Officers and Administrators can:
+
+- Change investigation status: Open → Under Investigation → Confirmed Ghost / Cleared / False Positive
+- Add timestamped notes on the employee profile
+- Status is preserved across rescans
+
+## Alert search, filters & export
+
+On the Ghost Workers alerts table you can:
+
+- Search by employee name or ID
+- Filter by risk level, investigation status, and department
+- Export the **currently filtered** list as CSV (`Export CSV` on the panel, or the top-bar Export button while on Ghost Workers)
+
+## Employees, attendance & payroll APIs
+
+These sections now load sample data from the local API instead of static front-end arrays:
+
+| Endpoint | Privilege | Data |
+| --- | --- | --- |
+| `GET /api/employees` | employees | Directory + summary counts |
+| `GET /api/attendance` | attendance / employees / ghost-workers | Per-employee attendance snapshot |
+| `GET /api/payroll` | payroll-finance / export | Payroll runs by period |
+
+Delete `.ghost-worker.sqlite3` and restart the server if you need to re-seed attendance and payroll sample rows.
+
 ## Verify
 
 ```powershell
