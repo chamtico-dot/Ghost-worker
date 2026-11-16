@@ -35,7 +35,7 @@ class DashboardUiSmokeTests(unittest.TestCase):
         try:
             self.login(page, "finance@kiu", "finance123")
             self.assertTrue(page.locator('a[data-nav="ghost-workers"]').is_visible())
-            self.assertTrue(page.locator('a[data-nav="payroll"]').is_visible())
+            self.assertTrue(page.locator('a[data-nav="payroll-finance"]').is_visible())
             self.assertFalse(page.locator('a[data-nav="attendance"]').is_visible())
         finally:
             context.close()
