@@ -1,5 +1,7 @@
 # KIU Ghost Worker Detection Demo
 
+This is a refined second version of a group project, building on the original concept with a more complete role-aware workflow and employee review experience.
+
 A responsive, local-first HR dashboard prototype. The Ghost Worker workspace is backed by SQLite sample records and a Python standard-library API. Authentication, session validation, and role checks run on the server; passwords are stored as PBKDF2 hashes rather than in browser code.
 
 ## Run locally
