@@ -34,9 +34,9 @@ class DashboardUiSmokeTests(unittest.TestCase):
         context, page = self.open_page()
         try:
             self.login(page, "finance@kiu", "finance123")
-            self.assertTrue(page.locator('[data-nav="ghost-workers"]').is_visible())
-            self.assertTrue(page.locator('[data-nav="payroll"]').is_visible())
-            self.assertFalse(page.locator('[data-nav="attendance"]').is_visible())
+            self.assertTrue(page.locator('a[data-nav="ghost-workers"]').is_visible())
+            self.assertTrue(page.locator('a[data-nav="payroll"]').is_visible())
+            self.assertFalse(page.locator('a[data-nav="attendance"]').is_visible())
         finally:
             context.close()
 
@@ -44,7 +44,7 @@ class DashboardUiSmokeTests(unittest.TestCase):
         context, page = self.open_page()
         try:
             self.login(page, "investigator@kiu", "investigate")
-            page.locator('[data-nav="ghost-workers"]').click()
+            page.locator('a[data-nav="ghost-workers"]').click()
             view_button = page.locator('.ghost-table tbody button[data-ghost-action="view"]').first
             view_button.wait_for(state="visible")
             view_button.click()
