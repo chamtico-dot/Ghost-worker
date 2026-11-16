@@ -1,0 +1,368 @@
+﻿<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="KIU Human Resources and Finance executive dashboard" />
+    <title>KIU HR & Finance</title>
+    <link rel="stylesheet" href="styles.css?v=11" />
+    <link rel="stylesheet" href="role-dashboard.css" />
+  </head>
+  <body>
+    <main class="login-page" id="login-page">
+      <section class="template-login" aria-labelledby="login-title">
+        <div class="login-logo" role="img" aria-label="Kampala International University logo">
+          <img src="login_tamplate.jpg" alt="" />
+        </div>
+        <p class="login-university">KAMPALA<br />INTERNATIONAL<br />UNIVERSITY</p>
+        <p class="login-tagline">EXPLORING THE HEIGHTS</p>
+        <p class="login-system-name">KIU HUMAN RESOURCES</p>
+        <p class="login-system-description">Payroll Intelligence &amp; Ghost Workers Detection System</p>
+        <form class="template-login-form" id="login-form">
+          <label for="login-email">Email</label>
+          <input id="login-email" name="email" type="text" inputmode="email" value="admin@kiu" placeholder="email@kiu" autocomplete="username" required />
+          <label for="login-password">Password</label>
+          <input id="login-password" name="password" type="password" placeholder="Enter password" autocomplete="current-password" required />
+          <button type="submit">Submit</button>
+          <div class="login-options">
+            <label class="template-stay-signed-in"><input type="checkbox" name="stay-signed-in" /> <span>Stay signed in</span></label>
+            <button type="button" class="template-forgot-login" id="forgot-login">Forgot login?</button>
+          </div>
+          <p class="login-message" id="login-message" role="status" aria-live="polite"></p>
+        </form>
+        <div class="login-feedback" id="login-feedback" role="status" aria-live="polite"></div>
+        <p class="login-demo-note">Local demo accounts are listed in <a href="README.md">README.md</a>.</p>
+      </section>
+    </main>
+
+    <main class="app-shell" id="dashboard-shell" hidden>
+      <header class="topbar">
+        <nav class="primary-nav" aria-label="Primary navigation">
+          <a class="active" href="#dashboard" data-nav="dashboard">Dashboard</a>
+          <a href="#projects" data-nav="projects">Projects</a>
+          <a href="#employees" data-nav="employees">Employees</a>
+          <a href="#payroll-finance" data-nav="payroll-finance">Payroll &amp; Finance</a>
+          <a href="#attendance" data-nav="attendance">Attendance</a>
+          <a href="#ghost-workers" data-nav="ghost-workers">Ghost workers</a>
+        </nav>
+        <form class="dashboard-search" id="dashboard-search" role="search">
+          <label class="visually-hidden" for="dashboard-search-input">Search dashboard</label>
+          <input id="dashboard-search-input" type="search" placeholder="Search dashboard" autocomplete="off" />
+        </form>
+        <div class="topbar-actions">
+          <button class="icon-button notification-button" aria-label="Notifications" data-action="notifications">
+            <svg class="notification-icon" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M18 9a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4" />
+            </svg>
+            <span class="notification-dot"></span>
+          </button>
+          <div class="profile-menu-wrap">
+            <button class="profile-button" id="profile-toggle" aria-label="Open administrator menu" aria-expanded="false" aria-controls="profile-menu">
+              <span class="avatar" id="admin-avatar" aria-hidden="true">
+                <svg class="avatar-placeholder" viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.5" /><path d="M5 20c.7-3.5 3.1-5.5 7-5.5s6.3 2 7 5.5" /></svg>
+                <img alt="" />
+              </span><b>Admin</b>
+              <svg class="profile-chevron" viewBox="0 0 16 16" aria-hidden="true"><path d="m4 6 4 4 4-4" /></svg>
+            </button>
+            <div class="profile-menu" id="profile-menu" hidden>
+              <div class="profile-menu-header"><span class="avatar avatar-menu" id="admin-menu-avatar" aria-hidden="true">
+                <svg class="avatar-placeholder" viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.5" /><path d="M5 20c.7-3.5 3.1-5.5 7-5.5s6.3 2 7 5.5" /></svg>
+                <img alt="" />
+              </span><div><strong>Administrator</strong><small>admin@kiu</small></div></div>
+              <div class="profile-menu-divider"></div>
+              <button type="button" data-profile-action="change-photo">◎ <span>Change profile picture</span></button>
+              <button type="button" data-profile-action="profile">◉ <span>My profile</span></button>
+              <button type="button" data-profile-action="settings">⚙ <span>Account settings</span></button>
+              <button type="button" data-profile-action="preferences">◐ <span>Preferences</span></button>
+              <button type="button" data-profile-action="help">? <span>Help &amp; support</span></button>
+              <div class="profile-menu-divider"></div>
+              <button type="button" class="profile-sign-out" data-profile-action="sign-out">↪ <span>Sign out</span></button>
+            </div>
+            <input id="profile-picture-input" class="visually-hidden" type="file" accept="image/png,image/jpeg,image/webp" />
+          </div>
+        </div>
+      </header>
+
+      <section class="page-heading" id="dashboard">
+        <div class="heading-tools">
+          <label class="period-picker">Period <select aria-label="Select reporting period" id="period-select"><option>October 2025</option><option>September 2025</option><option>August 2025</option></select></label>
+          <button class="export-button" type="button" data-action="export">↥ <span>Export report</span></button>
+        </div>
+      </section>
+
+      <section class="role-dashboard" id="role-dashboard" hidden aria-labelledby="role-dashboard-title">
+        <div class="role-dashboard-heading"><p class="eyebrow">Personal workspace</p><h2 id="role-dashboard-title">Your workspace</h2><p class="muted" id="role-dashboard-summary"></p></div>
+        <div class="role-dashboard-grid" id="role-dashboard-cards"></div>
+      </section>
+
+      <section class="ghost-dashboard" id="ghost-dashboard" hidden aria-labelledby="ghost-title">
+        <div class="ghost-heading"><div><p class="ghost-kicker">HR integrity monitoring</p><h1 id="ghost-title">Ghost Worker Detection <span>Dashboard</span></h1><p>Scan employee activity and detect inactive or suspicious records.</p></div><div class="ghost-system-status"><i></i> System Online <span>│</span> ◫ Nov 13, 2026 · 14:35 <b>Admin⌄</b></div></div>
+        <div class="ghost-kpis">
+          <article><span class="ghost-kpi-icon workers">♟</span><div><strong>248</strong><p>Total Employees</p><small>↑ +2%</small></div></article>
+          <article><span class="ghost-kpi-icon valid">✓</span><div><strong>234</strong><p>Active Workers</p><small>↑ +1%</small></div></article>
+          <article><span class="ghost-kpi-icon suspicious">!</span><div><strong>14</strong><p>Suspicious / Ghost</p><small>↑ +3%</small></div></article>
+          <article><span class="ghost-kpi-icon attendance">◷</span><div><strong>94.4%</strong><p>Attendance Rate</p><small>↑ +0.6%</small></div></article>
+        </div>
+        <div class="ghost-main-grid">
+          <article class="ghost-panel ghost-scan-panel"><div class="ghost-panel-title"><h2>♢ Ghost Worker Detection</h2><p>Scan employee activity and detect inactive or fake workers.</p></div><div class="scan-visual"><div class="scan-radar"><span>♟</span><i></i></div><div><h3>Scan Complete!</h3><p>Analysis finished successfully.</p><dl><div><dt>♟</dt><dd>Total Checked <b>248</b></dd></div><div><dt>✓</dt><dd>Valid Workers <b>234</b></dd></div><div><dt>!</dt><dd>Ghost Workers <b>14</b></dd></div></dl></div></div><button class="ghost-scan-button" type="button" data-ghost-action="scan">⌕ &nbsp; Scan Now</button></article>
+          <article class="ghost-panel ghost-trend-panel"><div class="ghost-panel-title"><h2>▥ Detection Trend</h2><div class="ghost-range"><button class="active" data-ghost-range="7D">7D</button><button data-ghost-range="30D">30D</button><button data-ghost-range="90D">90D</button></div></div><div class="ghost-legend"><span><i class="valid-dot"></i> Valid Workers</span><span><i class="ghost-dot"></i> Ghost Workers</span></div><div class="ghost-chart"><div class="ghost-y-axis"><span>250</span><span>200</span><span>150</span><span>100</span><span>50</span><span>0</span></div><div class="ghost-chart-area"><div class="ghost-grid"></div><svg viewBox="0 0 600 170" role="img" aria-label="Valid and ghost worker detection trend"><polygon class="valid-area" points="10,38 125,24 240,29 355,27 470,15 590,8 590,155 10,155" /><polyline class="valid-line" points="10,38 125,24 240,29 355,27 470,15 590,8" /><polyline class="ghost-line" points="10,148 125,145 240,145 355,141 470,138 590,134" /><g class="ghost-points"><circle cx="10" cy="38"/><circle cx="125" cy="24"/><circle cx="240" cy="29"/><circle cx="355" cy="27"/><circle cx="470" cy="15"/><circle cx="590" cy="8"/></g></svg><div class="ghost-days"><span>Nov 7</span><span>Nov 8</span><span>Nov 9</span><span>Nov 10</span><span>Nov 11</span><span>Nov 12</span><span>Nov 13</span></div></div></div></article>
+        </div>
+        <div class="ghost-bottom-grid">
+          <article class="ghost-panel ghost-statistics"><h2>Detection Statistics</h2><div class="ghost-donut-wrap"><div class="ghost-donut"><span>94.4%<small>Valid</small></span></div><div><p><i class="valid-dot"></i> Valid Workers <b>234 (94.4%)</b></p><p><i class="ghost-dot"></i> Ghost Workers <b>14 (5.6%)</b></p></div></div></article>
+          <article class="ghost-panel ghost-alerts"><div class="ghost-panel-title"><h2>🔔 Recent Alerts</h2><button type="button" data-ghost-action="alerts">View All →</button></div><div class="ghost-table-wrap"><table class="ghost-table"><thead><tr><th>#</th><th>Employee ID</th><th>Name</th><th>Status</th><th>Risk Level</th><th>Detected At</th><th>Action</th></tr></thead><tbody><tr><td>1</td><td>KIU-0014</td><td>John Doe</td><td>Ghost Worker</td><td><b class="risk-high">High</b></td><td>Nov 13, 2026 14:32</td><td><button data-ghost-action="view" data-ghost-name="John Doe">View</button></td></tr><tr><td>2</td><td>KIU-0078</td><td>Mary Atieno</td><td>Inactive</td><td><b class="risk-medium">Medium</b></td><td>Nov 13, 2026 14:20</td><td><button data-ghost-action="view" data-ghost-name="Mary Atieno">View</button></td></tr><tr><td>3</td><td>KIU-0121</td><td>Samuel Okello</td><td>Ghost Worker</td><td><b class="risk-high">High</b></td><td>Nov 13, 2026 14:18</td><td><button data-ghost-action="view" data-ghost-name="Samuel Okello">View</button></td></tr></tbody></table></div></article>
+        </div>
+      </section>
+
+      <section class="projects-dashboard" id="projects-dashboard" hidden aria-labelledby="projects-title">
+        <div class="projects-hero">
+          <div class="projects-title">
+            <span class="projects-icon" aria-hidden="true">▰</span>
+            <div><h1 id="projects-title">Projects</h1><p>Manage and monitor all university projects</p></div>
+          </div>
+          <button class="project-add-button" type="button" data-project-action="add">+ <span>Add Project</span></button>
+        </div>
+        <div class="project-kpis">
+          <article class="project-kpi project-kpi-green"><span class="project-kpi-icon">▰</span><div><p>Total Projects</p><strong>12</strong><small>↑ +1 this month</small></div><b>▰</b></article>
+          <article class="project-kpi project-kpi-blue"><span class="project-kpi-icon">✓</span><div><p>Ongoing Projects</p><strong>7</strong><small>↑ 58.3%</small></div><b>◷</b></article>
+          <article class="project-kpi project-kpi-purple"><span class="project-kpi-icon">⚑</span><div><p>Completed Projects</p><strong>4</strong><small>↑ 33.3%</small></div><b>♛</b></article>
+          <article class="project-kpi project-kpi-orange"><span class="project-kpi-icon">▣</span><div><p>Upcoming Deadlines</p><strong>2</strong><small class="project-negative">↓ -50%</small></div><b>◷</b></article>
+        </div>
+        <div class="projects-analytics">
+          <article class="project-panel project-overview">
+            <div class="project-panel-heading"><h2>▥ &nbsp;Projects Overview</h2><select aria-label="Project overview period"><option>This Year</option><option>Last Year</option></select></div>
+            <div class="project-donut-wrap"><div class="project-donut"><span>12<small>Projects</small></span></div><div class="project-legend"><p><i class="legend-green"></i> Ongoing <b>7 <small>(58.3%)</small></b></p><p><i class="legend-blue"></i> Completed <b>4 <small>(33.3%)</small></b></p><p><i class="legend-purple"></i> Planned <b>1 <small>(8.3%)</small></b></p></div></div>
+          </article>
+          <article class="project-panel project-trend">
+            <div class="project-panel-heading"><h2>↗ &nbsp;Project Progress Trend</h2></div>
+            <div class="project-line-chart" aria-label="Project progress trend from January to June"><div class="project-y-axis"><span>100</span><span>75</span><span>50</span><span>25</span><span>0</span></div><div class="project-chart-area"><div class="project-grid-lines"></div><svg viewBox="0 0 600 150" role="img" aria-label="Progress values 40, 55, 70, 65, 80, 90 percent"><polygon points="20,113 136,91 252,65 368,77 484,42 580,22 580,140 20,140" /><polyline points="20,113 136,91 252,65 368,77 484,42 580,22" /><g><circle cx="20" cy="113" r="4" /><circle cx="136" cy="91" r="4" /><circle cx="252" cy="65" r="4" /><circle cx="368" cy="77" r="4" /><circle cx="484" cy="42" r="4" /><circle cx="580" cy="22" r="4" /></g><g class="project-chart-values"><text x="20" y="103">40%</text><text x="136" y="81">55%</text><text x="252" y="55">70%</text><text x="368" y="67">65%</text><text x="484" y="32">80%</text><text x="580" y="12">90%</text></g></svg><div class="project-months"><span>Jan</span><span>Feb</span><span>Mar</span><span>Apr</span><span>May</span><span>Jun</span></div></div></div>
+          </article>
+        </div>
+        <article class="project-panel recent-projects">
+          <div class="project-panel-heading"><h2>▤ &nbsp;Recent Projects</h2><button class="project-view-all" type="button" data-project-action="view-all">View All Projects →</button></div>
+          <div class="project-table-wrap"><table class="project-table"><thead><tr><th>#</th><th>Project Name</th><th>Department</th><th>Start Date</th><th>End Date</th><th>Status</th><th>Progress</th><th>Actions</th></tr></thead><tbody>
+            <tr><td>1</td><td>KIU Student Portal Upgrade</td><td>Technical staff</td><td>01 Oct 2025</td><td>31 Dec 2025</td><td><span class="project-status ongoing">Ongoing</span></td><td><div class="project-progress"><span>75%</span><i><b style="width:75%"></b></i></div></td><td><button data-project-action="view" data-project-name="KIU Student Portal Upgrade" aria-label="View KIU Student Portal Upgrade">◉</button><button data-project-action="edit" data-project-name="KIU Student Portal Upgrade" aria-label="Edit KIU Student Portal Upgrade">↗</button><button data-project-action="delete" data-project-name="KIU Student Portal Upgrade" aria-label="Delete KIU Student Portal Upgrade">▣</button></td></tr>
+            <tr><td>2</td><td>HRMS Integration with Payroll</td><td>Administrative staff</td><td>15 Sep 2025</td><td>30 Nov 2025</td><td><span class="project-status ongoing">Ongoing</span></td><td><div class="project-progress"><span>60%</span><i><b style="width:60%"></b></i></div></td><td><button data-project-action="view" data-project-name="HRMS Integration with Payroll" aria-label="View HRMS Integration with Payroll">◉</button><button data-project-action="edit" data-project-name="HRMS Integration with Payroll" aria-label="Edit HRMS Integration with Payroll">↗</button><button data-project-action="delete" data-project-name="HRMS Integration with Payroll" aria-label="Delete HRMS Integration with Payroll">▣</button></td></tr>
+            <tr><td>3</td><td>KIU Research Hub</td><td>Academic staff</td><td>01 Aug 2025</td><td>31 Oct 2025</td><td><span class="project-status completed">Completed</span></td><td><div class="project-progress"><span>100%</span><i><b style="width:100%"></b></i></div></td><td><button data-project-action="view" data-project-name="KIU Research Hub" aria-label="View KIU Research Hub">◉</button><button data-project-action="edit" data-project-name="KIU Research Hub" aria-label="Edit KIU Research Hub">↗</button><button data-project-action="delete" data-project-name="KIU Research Hub" aria-label="Delete KIU Research Hub">▣</button></td></tr>
+            <tr><td>4</td><td>Campus Network Upgrade</td><td>Technical staff</td><td>01 Jul 2025</td><td>30 Sep 2025</td><td><span class="project-status completed">Completed</span></td><td><div class="project-progress"><span>100%</span><i><b style="width:100%"></b></i></div></td><td><button data-project-action="view" data-project-name="Campus Network Upgrade" aria-label="View Campus Network Upgrade">◉</button><button data-project-action="edit" data-project-name="Campus Network Upgrade" aria-label="Edit Campus Network Upgrade">↗</button><button data-project-action="delete" data-project-name="Campus Network Upgrade" aria-label="Delete Campus Network Upgrade">▣</button></td></tr>
+          </tbody></table></div>
+        </article>
+      </section>
+
+      <section class="attendance-dashboard" id="attendance-dashboard" hidden aria-labelledby="attendance-title">
+        <div class="attendance-heading">
+          <div>
+            <p class="eyebrow">Workforce productivity</p>
+            <h1 id="attendance-title">Present <span>·</span> Absent <span>·</span> Leave <span>·</span> Overtime</h1>
+            <p class="muted">Track <span>·</span> Analyze <span>·</span> Manage <span>·</span> Build a productive workforce</p>
+          </div>
+          <div class="attendance-actions">
+            <label>Period <select id="attendance-period"><option>Last 6 months</option><option>This month</option><option>This week</option></select></label>
+            <button type="button" class="export-button" data-attendance-action="export">↥ <span>Export data</span></button>
+          </div>
+        </div>
+        <div class="attendance-kpis">
+          <article class="attendance-kpi kpi-blue"><span>▣</span><p>Total employees</p><strong>248</strong><small class="up">▲ 2.5% <em>vs. last month</em></small></article>
+          <article class="attendance-kpi kpi-green"><span>✓</span><p>Present</p><strong>201</strong><small class="up">▲ 7.5% <em>vs. last month</em></small></article>
+          <article class="attendance-kpi kpi-orange"><span>×</span><p>Absent</p><strong>14</strong><small class="down">▼ 36.4% <em>vs. last month</em></small></article>
+          <article class="attendance-kpi kpi-purple"><span>▣</span><p>On leave</p><strong>22</strong><small class="up">▲ 22.2% <em>vs. last month</em></small></article>
+          <article class="attendance-kpi kpi-pink"><span>◷</span><p>Overtime (hrs)</p><strong>186</strong><small class="up">▲ 12.1% <em>vs. last month</em></small></article>
+          <article class="attendance-kpi kpi-yellow"><span>◷</span><p>Late count</p><strong>7</strong><small class="down">▼ 8.3% <em>vs. last month</em></small></article>
+          <article class="attendance-kpi kpi-remote"><span>▣</span><p>Remote count</p><strong>10</strong><small class="up">▲ 10.0% <em>vs. last month</em></small></article>
+          <article class="attendance-kpi kpi-teal"><span>%</span><p>Attendance rate</p><strong>90.9%</strong><small class="up">▲ 6.8% <em>vs. last month</em></small></article>
+        </div>
+        <div class="attendance-grid">
+          <article class="attendance-panel attendance-trend-panel">
+            <div class="attendance-panel-heading"><div><p class="eyebrow">Monthly movement</p><h2>Attendance trend <small>(last 6 months)</small></h2></div><span class="attendance-legend"><i></i> Present <i></i> Absent <i></i> Attendance %</span></div>
+            <div class="attendance-chart" aria-label="Attendance trend chart">
+              <div class="chart-y-labels"><span>250</span><span>200</span><span>150</span><span>100</span><span>50</span><span>0</span></div>
+              <div class="attendance-bars">
+                <div class="attendance-month"><div class="attendance-bar-wrap"><b>210</b><i style="height:84%"></i><em>42</em><u style="height:17%"></u></div><span>Jan</span></div>
+                <div class="attendance-month"><div class="attendance-bar-wrap"><b>218</b><i style="height:87%"></i><em>34</em><u style="height:14%"></u></div><span>Feb</span></div>
+                <div class="attendance-month"><div class="attendance-bar-wrap"><b>225</b><i style="height:90%"></i><em>30</em><u style="height:12%"></u></div><span>Mar</span></div>
+                <div class="attendance-month"><div class="attendance-bar-wrap"><b>232</b><i style="height:93%"></i><em>22</em><u style="height:9%"></u></div><span>Apr</span></div>
+                <div class="attendance-month"><div class="attendance-bar-wrap"><b>240</b><i style="height:96%"></i><em>18</em><u style="height:7%"></u></div><span>May</span></div>
+                <div class="attendance-month"><div class="attendance-bar-wrap"><b>248</b><i style="height:99%"></i><em>16</em><u style="height:6%"></u></div><span>Jun</span></div>
+              </div>
+            </div>
+          </article>
+          <article class="attendance-panel department-panel">
+            <div class="attendance-panel-heading"><div><p class="eyebrow">Current month</p><h2>Attendance status</h2></div></div>
+            <div class="department-content"><div class="attendance-donut status-donut"><strong>248<small>Total<br />employees</small></strong></div><ul class="department-list"><li><i class="dept-green"></i> Present <b>81.0%</b></li><li><i class="dept-pink"></i> Absent <b>5.6%</b></li><li><i class="dept-orange"></i> On leave <b>8.9%</b></li><li><i class="dept-blue"></i> Overtime <b>4.4%</b></li></ul></div>
+          </article>
+          <article class="attendance-panel filter-panel">
+            <div class="attendance-panel-heading"><div><p class="eyebrow">Refine results</p><h2>Filters</h2></div></div>
+            <label>Date range<select id="attendance-range"><option>Last 6 months</option><option>This month</option></select></label><label>Department<select id="attendance-department"><option>All departments</option><option>Academic staff</option><option>Administrative staff</option><option>Technical staff</option><option>Support staff</option><option>Management</option><option>Medical staff</option></select></label><label>Location<select id="attendance-location"><option>All locations</option><option>Head Office</option><option>Branch A</option><option>Branch B</option></select></label><label>Attendance status<select id="attendance-status"><option>All statuses</option><option>Present</option><option>Absent</option><option>Leave</option></select></label>
+          </article>
+          <article class="attendance-panel location-panel"><div class="attendance-panel-heading"><div><p class="eyebrow">Six-month movement</p><h2>Leave trend</h2></div></div><div class="location-bars trend-bars"><p><span>Jan</span><i><b style="width:55%"></b></i><strong>12</strong></p><p><span>Feb</span><i><b style="width:68%"></b></i><strong>15</strong></p><p><span>Mar</span><i><b style="width:82%"></b></i><strong>18</strong></p><p><span>Apr</span><i><b style="width:91%"></b></i><strong>20</strong></p><p><span>May</span><i><b style="width:96%"></b></i><strong>21</strong></p><p><span>Jun</span><i><b style="width:100%"></b></i><strong>22</strong></p></div></article>
+          <article class="attendance-panel performers-panel"><div class="attendance-panel-heading"><div><p class="eyebrow">Six-month movement</p><h2>Overtime trend (hours)</h2></div></div><div class="location-bars overtime-bars"><p><span>Jan</span><i><b style="width:64%"></b></i><strong>120</strong></p><p><span>Feb</span><i><b style="width:72%"></b></i><strong>135</strong></p><p><span>Mar</span><i><b style="width:80%"></b></i><strong>160</strong></p><p><span>Apr</span><i><b style="width:88%"></b></i><strong>170</strong></p><p><span>May</span><i><b style="width:94%"></b></i><strong>180</strong></p><p><span>Jun</span><i><b style="width:100%"></b></i><strong>186</strong></p></div></article>
+          <article class="attendance-panel daily-trend-panel"><div class="attendance-panel-heading"><div><p class="eyebrow">Current month</p><h2>Daily attendance trend</h2></div><span class="attendance-legend"><i></i> Present <i></i> Absent <i></i> Late</span></div><div class="daily-trend"><span style="height:54%"></span><span style="height:68%"></span><span style="height:61%"></span><span style="height:77%"></span><span style="height:72%"></span><span style="height:84%"></span><span style="height:70%"></span><span style="height:91%"></span><span style="height:80%"></span><span style="height:88%"></span><span style="height:76%"></span><span style="height:94%"></span><span style="height:86%"></span><span style="height:98%"></span><span style="height:90%"></span></div><div class="daily-trend-labels"><span>May 1</span><span>May 15</span><span>May 31</span></div></article>
+          <article class="attendance-panel department-rate-panel"><div class="attendance-panel-heading"><div><p class="eyebrow">Department performance</p><h2>Present rate by department</h2></div></div><div class="location-bars department-rate-bars"><p><span>Technical staff</span><i><b style="width:87.5%"></b></i><strong>87.5%</strong></p><p><span>Administrative staff</span><i><b style="width:80%"></b></i><strong>80.0%</strong></p><p><span>Academic staff</span><i><b style="width:78%"></b></i><strong>78.0%</strong></p><p><span>Support staff</span><i><b style="width:72%"></b></i><strong>72.0%</strong></p><p><span>Medical staff</span><i><b style="width:70%"></b></i><strong>70.0%</strong></p><p><span>Management</span><i><b style="width:68%"></b></i><strong>68.0%</strong></p></div></article>
+          <article class="attendance-panel work-hours-panel"><div class="attendance-panel-heading"><div><p class="eyebrow">Recognition</p><h2>Top 5 employees by work hours</h2></div></div><table><thead><tr><th>Employee</th><th>Department</th><th>Hours</th></tr></thead><tbody><tr><td>David Bello</td><td>Technical staff</td><td>186.2</td></tr><tr><td>Ruth Ibrahim</td><td>Administrative staff</td><td>182.4</td></tr><tr><td>John Musa</td><td>Support staff</td><td>180.1</td></tr><tr><td>Mary James</td><td>Administrative staff</td><td>178.5</td></tr><tr><td>Daniel Okafor</td><td>Management</td><td>176.3</td></tr></tbody></table></article>
+          <article class="attendance-panel heatmap-panel"><div class="attendance-panel-heading"><div><p class="eyebrow">Daily coverage</p><h2>Attendance heatmap <small>(present days)</small></h2></div></div><div class="heatmap"><div class="heatmap-row"><b>EMP001</b><i class="heat-3"></i><i class="heat-4"></i><i class="heat-3"></i><i class="heat-4"></i><i class="heat-2"></i><i class="heat-4"></i><i class="heat-4"></i><i class="heat-3"></i><i class="heat-4"></i><i class="heat-2"></i><i class="heat-4"></i><i class="heat-3"></i></div><div class="heatmap-row"><b>EMP002</b><i class="heat-4"></i><i class="heat-1"></i><i class="heat-4"></i><i class="heat-4"></i><i class="heat-2"></i><i class="heat-4"></i><i class="heat-3"></i><i class="heat-4"></i><i class="heat-4"></i><i class="heat-1"></i><i class="heat-4"></i><i class="heat-3"></i></div><div class="heatmap-row"><b>EMP003</b><i class="heat-2"></i><i class="heat-4"></i><i class="heat-3"></i><i class="heat-1"></i><i class="heat-4"></i><i class="heat-3"></i><i class="heat-4"></i><i class="heat-2"></i><i class="heat-4"></i><i class="heat-3"></i><i class="heat-1"></i><i class="heat-4"></i></div><div class="heatmap-legend"><span><i class="heat-4"></i> Present</span><span><i class="heat-1"></i> Absent</span><span><i class="heat-2"></i> Late</span><span><i class="heat-3"></i> Leave</span></div></article>
+        </div>
+        <article class="attendance-panel attendance-data-panel"><div class="attendance-panel-heading"><div><p class="eyebrow">Sample records</p><h2>Employee attendance data</h2></div><button type="button" class="modal-secondary" data-attendance-action="view-all">View all records</button></div><div class="attendance-table-wrap"><table><thead><tr><th>Emp ID</th><th>Name</th><th>Department</th><th>Location</th><th>Status</th><th>Present days</th><th>Absent days</th><th>Leave days</th><th>Overtime hrs</th></tr></thead><tbody><tr><td>E001</td><td>Rakesh Kumar</td><td>Technical staff</td><td>Head Office</td><td class="status-present">Present</td><td>22</td><td>1</td><td>0</td><td>12</td></tr><tr><td>E002</td><td>Priya Sharma</td><td>Administrative staff</td><td>Branch A</td><td class="status-present">Present</td><td>21</td><td>2</td><td>1</td><td>14</td></tr><tr><td>E003</td><td>Amit Verma</td><td>Support staff</td><td>Head Office</td><td class="status-leave">Leave</td><td>18</td><td>0</td><td>4</td><td>10</td></tr><tr><td>E004</td><td>Neha Gupta</td><td>Administrative staff</td><td>Branch B</td><td class="status-present">Present</td><td>22</td><td>1</td><td>1</td><td>16</td></tr><tr><td>E005</td><td>Sandeep Yadav</td><td>Management</td><td>Head Office</td><td class="status-absent">Absent</td><td>20</td><td>3</td><td>2</td><td>8</td></tr></tbody></table></div></article>
+      </section>
+
+      <section class="payroll-dashboard" id="payroll-dashboard" hidden aria-labelledby="payroll-title">
+        <div class="payroll-heading">
+          <div><p class="eyebrow">Payroll &amp; finance intelligence</p><h1 id="payroll-title">Payroll &amp; Finance dashboard</h1><p class="muted">Track <span>·</span> Analyze <span>·</span> Pay <span>·</span> Manage financial performance</p></div>
+          <div class="payroll-actions">          <label>Pay month<select id="payroll-month"><option>June 2026</option><option>May 2026</option><option>April 2026</option></select></label><label>Department<select id="payroll-department"><option>All departments</option><option>Finance</option><option>Human Resources</option><option>ICT</option><option>Administration</option><option>Engineering</option></select></label><button class="export-button" type="button" data-payroll-action="export">↥ <span>Export payroll</span></button></div>
+        </div>
+        <div class="payroll-kpis">
+          <article><span class="payroll-icon green">♙</span><p>Total employees</p><strong>250</strong><small>+5 vs Apr 2026</small></article>
+          <article><span class="payroll-icon blue">$</span><p>Gross payroll</p><strong>UGX 1.25B</strong><small class="up">▲ 7.2% vs Apr 2026</small></article>
+          <article><span class="payroll-icon pink">↓</span><p>Total deductions</p><strong>UGX 32.45M</strong><small class="down">▼ 6.1% vs Apr 2026</small></article>
+          <article><span class="payroll-icon purple">◈</span><p>Net pay</p><strong>UGX 933.5M</strong><small class="up">▲ 7.8% vs Apr 2026</small></article>
+          <article><span class="payroll-icon orange">◷</span><p>Average net salary</p><strong>UGX 37,340</strong><small class="up">▲ 2.5% vs Apr 2026</small></article>
+          <article><span class="payroll-icon teal">✓</span><p>Payroll completion</p><strong>100%</strong><small>On time</small></article>
+        </div>
+        <div class="payroll-grid">
+          <article class="payroll-panel payroll-trend"><div class="payroll-panel-heading"><div><p class="eyebrow">Monthly movement</p><h2>Payroll trend <small>(last 6 months)</small></h2></div><span class="payroll-legend"><i></i> Gross pay <i></i> Deductions <i></i> Net pay</span></div><div class="payroll-bars"><p><span>Jan</span><i style="height:62%"></i><b>1.08B</b></p><p><span>Feb</span><i style="height:70%"></i><b>1.14B</b></p><p><span>Mar</span><i style="height:77%"></i><b>1.19B</b></p><p><span>Apr</span><i style="height:74%"></i><b>1.16B</b></p><p><span>May</span><i style="height:86%"></i><b>1.25B</b></p><p><span>Jun</span><i style="height:92%"></i><b>1.31B</b></p></div></article>
+          <article class="payroll-panel payroll-department"><div class="payroll-panel-heading"><div><p class="eyebrow">Cost allocation</p><h2>Net pay by department</h2></div></div><div class="payroll-donut"><strong>UGX 933.5M<small>Total net pay</small></strong></div><ul class="payroll-list"><li><i class="dept-blue"></i> IT <b>28%</b></li><li><i class="dept-green"></i> Finance <b>20%</b></li><li><i class="dept-orange"></i> Sales <b>18%</b></li><li><i class="dept-purple"></i> Operations <b>16%</b></li><li><i class="dept-pink"></i> HR <b>12%</b></li></ul></article>
+          <article class="payroll-panel deduction-panel"><div class="payroll-panel-heading"><div><p class="eyebrow">This month</p><h2>Deduction summary</h2></div></div><ul class="payroll-money-list"><li>Tax deduction <b>UGX 21.0M</b></li><li>Pension contribution <b>UGX 6.2M</b></li><li>Loan deduction <b>UGX 3.1M</b></li><li>Other deductions <b>UGX 2.15M</b></li><li class="total">Total deductions <b>UGX 32.45M</b></li></ul></article>
+          <article class="payroll-panel payroll-table-panel"><div class="payroll-panel-heading"><div><p class="eyebrow">Payroll register</p><h2>Employee payroll summary</h2></div><button class="modal-secondary" type="button" data-payroll-action="view-all">View all employees</button></div><div class="payroll-table-wrap"><table><thead><tr><th>Emp ID</th><th>Employee</th><th>Department</th><th>Gross pay</th><th>Deductions</th><th>Net pay</th><th>Status</th><th>Action</th></tr></thead><tbody><tr><td>EMP007</td><td>James Miller</td><td>Technical staff</td><td>UGX 5,750</td><td>UGX 1,265</td><td>UGX 4,485</td><td class="paid">Paid</td><td><button class="row-action" data-payroll-action="view" data-payroll-name="James Miller">View</button></td></tr><tr><td>EMP014</td><td>Patricia Green</td><td>Support staff</td><td>UGX 5,440</td><td>UGX 1,055</td><td>UGX 4,385</td><td class="paid">Paid</td><td><button class="row-action" data-payroll-action="view" data-payroll-name="Patricia Green">View</button></td></tr><tr><td>EMP013</td><td>Robert King</td><td>Technical staff</td><td>UGX 5,105</td><td>UGX 1,085</td><td>UGX 4,020</td><td class="paid">Paid</td><td><button class="row-action" data-payroll-action="view" data-payroll-name="Robert King">View</button></td></tr><tr><td>EMP011</td><td>Daniel White</td><td>Administrative staff</td><td>UGX 4,750</td><td>UGX 1,070</td><td>UGX 3,680</td><td class="pending">Pending</td><td><button class="row-action" data-payroll-action="view" data-payroll-name="Daniel White">View</button></td></tr></tbody></table></div></article>
+          <article class="payroll-panel overtime-panel"><div class="payroll-panel-heading"><div><p class="eyebrow">Workforce cost</p><h2>Overtime hours by department</h2></div></div><div class="payroll-horizontal-bars"><p><span>Technical staff</span><i><b style="width:95%"></b></i><strong>38</strong></p><p><span>Administrative staff</span><i><b style="width:45%"></b></i><strong>18</strong></p><p><span>Support staff</span><i><b style="width:43%"></b></i><strong>17</strong></p><p><span>Management</span><i><b style="width:32%"></b></i><strong>12</strong></p><p><span>Academic staff</span><i><b style="width:16%"></b></i><strong>6</strong></p><p><span>Medical staff</span><i><b style="width:28%"></b></i><strong>11</strong></p></div></article>
+          <article class="payroll-panel top-pay-panel"><div class="payroll-panel-heading"><div><p class="eyebrow">Recognition</p><h2>Top 5 highest net pay</h2></div></div><ol class="top-pay-list"><li>James Miller <b>UGX 4,485</b></li><li>Patricia Green <b>UGX 4,385</b></li><li>Robert King <b>UGX 4,020</b></li><li>Michael Brown <b>UGX 3,995</b></li><li>Daniel White <b>UGX 3,680</b></li></ol></article>
+          <article class="payroll-panel payment-panel"><div class="payroll-panel-heading"><div><p class="eyebrow">Processing status</p><h2>Payment status</h2></div></div><div class="payment-donut"><strong>100%<small>Paid</small></strong></div><p class="payment-copy"><span class="paid-dot"></span> Paid <b>250</b><span class="pending-dot"></span> Pending <b>0</b></p></article>
+        </div>
+      </section>
+
+      <section class="summary-grid" aria-label="Workforce summary">
+        <article class="metric-card accent-lime" data-card-view="demographics" tabindex="0" role="button" aria-label="View demographics">
+          <div class="metric-card-header"><span class="metric-icon">♙</span><span class="trend positive">+4.8%</span></div>
+          <p class="metric-label">Actual headcount</p>
+          <strong class="metric-value">845</strong>
+          <div class="metric-detail"><span>Female <b>312</b></span><span>Male <b>511</b></span><span>Other <b>22</b></span></div>
+          <div class="sparkline"><i style="height:25%"></i><i style="height:42%"></i><i style="height:36%"></i><i style="height:54%"></i><i style="height:61%"></i><i style="height:72%"></i><i style="height:88%"></i></div>
+        </article>
+        <article class="metric-card accent-blue" data-card-view="hires" tabindex="0" role="button" aria-label="View hires">
+          <div class="metric-card-header"><span class="metric-icon">↗</span><span class="trend positive">+12.6%</span></div>
+          <p class="metric-label">New hires</p>
+          <strong class="metric-value">96</strong>
+          <div class="metric-detail"><span>Permanent <b>58</b></span><span>Temporary <b>38</b></span></div>
+          <div class="sparkline"><i style="height:47%"></i><i style="height:35%"></i><i style="height:58%"></i><i style="height:49%"></i><i style="height:72%"></i><i style="height:65%"></i><i style="height:90%"></i></div>
+        </article>
+        <article class="metric-card accent-orange" data-card-view="positions" tabindex="0" role="button" aria-label="View open positions">
+          <div class="metric-card-header"><span class="metric-icon">◫</span><span class="trend negative">-7.2%</span></div>
+          <p class="metric-label">Open positions</p>
+          <strong class="metric-value">42</strong>
+          <div class="metric-detail"><span>Regular <b>27</b></span><span>Contract <b>15</b></span></div>
+          <div class="sparkline"><i style="height:80%"></i><i style="height:67%"></i><i style="height:73%"></i><i style="height:55%"></i><i style="height:62%"></i><i style="height:42%"></i><i style="height:34%"></i></div>
+        </article>
+        <article class="metric-card accent-pink" data-card-view="terminations" tabindex="0" role="button" aria-label="View terminations">
+          <div class="metric-card-header"><span class="metric-icon">⊗</span><span class="trend positive">-2.1%</span></div>
+          <p class="metric-label">Terminations</p>
+          <strong class="metric-value">18</strong>
+          <div class="metric-detail"><span>Voluntary <b>12</b></span><span>Involuntary <b>6</b></span></div>
+          <div class="sparkline"><i style="height:54%"></i><i style="height:70%"></i><i style="height:46%"></i><i style="height:61%"></i><i style="height:37%"></i><i style="height:44%"></i><i style="height:25%"></i></div>
+        </article>
+      </section>
+
+      <section class="content-grid">
+        <div class="main-panel panel">
+          <div class="panel-heading">
+            <div><p class="eyebrow">Workforce overview</p><h2>People analytics</h2></div>
+            <div class="tab-list" role="tablist" aria-label="People analytics views">
+              <button class="tab active" role="tab" aria-selected="true" data-view="demographics">Demographics</button>
+              <button class="tab" role="tab" aria-selected="false" data-view="hires">Hires</button>
+              <button class="tab" role="tab" aria-selected="false" data-view="positions">Open positions</button>
+              <button class="tab" role="tab" aria-selected="false" data-view="terminations">Terminations</button>
+            </div>
+          </div>
+          <div class="chart-toolbar"><span id="chart-caption">Headcount by department</span><span class="chart-legend"><i></i> Current headcount <button aria-label="More chart options" data-action="chart-options">•••</button></span></div>
+          <div class="bar-chart" id="bar-chart" aria-label="Headcount by department chart">
+            <div class="bar-row"><span>Academic staff</span><div class="bar-track"><i style="width:92%"></i></div><b>286</b></div>
+            <div class="bar-row"><span>Administrative staff</span><div class="bar-track"><i style="width:45%"></i></div><b>140</b></div>
+            <div class="bar-row"><span>Technical staff</span><div class="bar-track"><i style="width:25%"></i></div><b>76</b></div>
+            <div class="bar-row"><span>Support staff</span><div class="bar-track"><i style="width:38%"></i></div><b>117</b></div>
+            <div class="bar-row"><span>Management</span><div class="bar-track"><i style="width:22%"></i></div><b>68</b></div>
+            <div class="bar-row"><span>Medical staff</span><div class="bar-track"><i style="width:51%"></i></div><b>158</b></div>
+          </div>
+          <div class="chart-footer"><span>Source: Employee master · Updated 06 Nov 2025</span><a href="#details" data-action="details">View detailed report →</a></div>
+        </div>
+
+        <aside class="side-column">
+          <div class="panel gender-panel">
+            <div class="panel-heading compact"><div><p class="eyebrow">Workforce mix</p><h2>Gender split</h2></div><button class="more-button" aria-label="More gender options" data-action="gender-options">•••</button></div>
+            <div class="donut-wrap"><div class="donut"><span>845<small>employees</small></span></div><div class="gender-list"><p><i class="dot female"></i> Female <b>36.9%</b></p><p><i class="dot male"></i> Male <b>60.5%</b></p><p><i class="dot other"></i> Other <b>2.6%</b></p></div></div>
+          </div>
+          <div class="panel alert-panel">
+            <div class="panel-heading compact"><div><p class="eyebrow">Action centre</p><h2>Needs attention</h2></div><span class="alert-count">3</span></div>
+            <ul class="alert-list"><li data-alert="contracts" data-required-privilege="projects"><span class="alert-symbol orange">!</span><div><b>12 contracts expiring</b><small>Within the next 30 days</small></div><span>›</span></li><li data-alert="payroll" data-required-privilege="payroll-finance"><span class="alert-symbol pink">₤</span><div><b>7 payroll exceptions</b><small>Review before approval</small></div><span>›</span></li><li data-alert="profiles" data-required-privilege="employees"><span class="alert-symbol blue">♙</span><div><b>18 profiles incomplete</b><small>Missing required documents</small></div><span>›</span></li></ul>
+          </div>
+        </aside>
+      </section>
+
+      <section class="quick-stats" aria-label="Quick statistics">
+        <article class="quick-stat" data-quick-view="demographics" tabindex="0" role="button"><span class="quick-icon green">◉</span><div><p>Total employees</p><strong>845</strong><small><b class="up">+3.1%</b> vs last month</small></div><span class="micro-chart"><i style="height:35%"></i><i style="height:46%"></i><i style="height:42%"></i><i style="height:65%"></i><i style="height:58%"></i><i style="height:77%"></i></span></article>
+        <article class="quick-stat" data-nav="payroll" tabindex="0" role="button"><span class="quick-icon purple">▤</span><div><p>Monthly payroll</p><strong>UGX 2.84B</strong><small><b class="up">+5.6%</b> vs last month</small></div><span class="micro-chart purple-chart"><i style="height:45%"></i><i style="height:38%"></i><i style="height:58%"></i><i style="height:52%"></i><i style="height:71%"></i><i style="height:83%"></i></span></article>
+        <article class="quick-stat" data-nav="employees" tabindex="0" role="button"><span class="quick-icon amber">♧</span><div><p>Job applicants</p><strong>1,284</strong><small><b class="down">-8.4%</b> vs last month</small></div><span class="micro-chart amber-chart"><i style="height:83%"></i><i style="height:70%"></i><i style="height:77%"></i><i style="height:62%"></i><i style="height:50%"></i><i style="height:42%"></i></span></article>
+        <article class="quick-stat" data-nav="attendance" tabindex="0" role="button"><span class="quick-icon blue">✓</span><div><p>Today’s attendance</p><strong>96.4%</strong><small><b class="up">+1.8%</b> vs last month</small></div><span class="micro-chart blue-chart"><i style="height:55%"></i><i style="height:61%"></i><i style="height:68%"></i><i style="height:63%"></i><i style="height:76%"></i><i style="height:86%"></i></span></article>
+      </section>
+      <section class="employees-dashboard" id="employees-dashboard" hidden aria-labelledby="employees-title">
+        <div class="employees-heading">
+          <div>
+            <p class="eyebrow">People operations</p>
+            <h1 id="employees-title">Employees</h1>
+            <p class="muted">Manage employee records, organization structure, and leave requests.</p>
+          </div>
+          <button class="export-button employee-add-button" type="button" data-employee-action="add">+ <span>Add employee</span></button>
+        </div>
+        <div class="employee-summary">
+          <article><span class="employee-summary-icon green">♙</span><div><p>Total employees</p><strong>845</strong><small>+24 this year</small></div></article>
+          <article><span class="employee-summary-icon blue">▣</span><div><p>Active employees</p><strong>823</strong><small>97.4% of workforce</small></div></article>
+          <article><span class="employee-summary-icon orange">◷</span><div><p>On leave today</p><strong>22</strong><small>5 pending requests</small></div></article>
+          <article><span class="employee-summary-icon purple">⌁</span><div><p>Departments</p><strong>8</strong><small>Across 4 campuses</small></div></article>
+        </div>
+        <div class="employee-tabs" role="tablist" aria-label="Employee workspace">
+          <button class="employee-tab active" type="button" role="tab" aria-selected="true" data-employee-tab="manage">Manage employees</button>
+          <button class="employee-tab" type="button" role="tab" aria-selected="false" data-employee-tab="organization">Organization chart</button>
+          <button class="employee-tab" type="button" role="tab" aria-selected="false" data-employee-tab="leave">Leave request <b>5</b></button>
+        </div>
+        <div class="employee-view" data-employee-view="manage">
+          <div class="employee-toolbar">
+            <label class="employee-search"><span class="visually-hidden">Search employees</span><input id="employee-search" type="search" placeholder="Search by name, ID, email..." autocomplete="off" aria-controls="employee-rows" /></label>
+            <label>Department<select id="employee-department"><option>All departments</option><option>Academic staff</option><option>Administrative staff</option><option>Technical staff</option><option>Support staff</option><option>Management</option><option>Medical staff</option></select></label>
+            <label>Status<select id="employee-status"><option>All statuses</option><option>Active</option><option>On leave</option><option>Inactive</option></select></label>
+            <label>Sort by<select id="employee-sort"><option value="name">Name</option><option value="department">Department</option><option value="recent">Recently added</option></select></label><button class="modal-secondary employee-export-button" type="button" data-employee-action="export">Export directory</button>
+          </div>
+          <div class="employee-table-wrap">
+            <table class="employee-table"><thead><tr><th>Employee</th><th>Employee ID</th><th>Email</th><th>Department</th><th>Designation</th><th>Status</th><th><span class="visually-hidden">Actions</span></th></tr></thead>
+              <tbody id="employee-rows">
+                <tr data-name="Aisha Namusoke" data-department="Administrative staff" data-status="Active"><td><button class="employee-person" data-employee-action="profile" data-employee-name="Aisha Namusoke"><span class="employee-avatar avatar-green">AN</span><span><b>Aisha Namusoke</b><small>Joined 12 Jan 2022</small></span></button></td><td>KIU-00124</td><td>aisha.namusoke@kiu.ac.ug</td><td>Administrative staff</td><td>HR Manager</td><td><span class="employee-status active">Active</span></td><td><button class="row-action" data-employee-action="profile" data-employee-name="Aisha Namusoke">View</button></td></tr>
+                <tr data-name="Brian Okello" data-department="Technical staff" data-status="Active"><td><button class="employee-person" data-employee-action="profile" data-employee-name="Brian Okello"><span class="employee-avatar avatar-blue">BO</span><span><b>Brian Okello</b><small>Joined 04 Mar 2020</small></span></button></td><td>KIU-00087</td><td>brian.okello@kiu.ac.ug</td><td>Technical staff</td><td>Systems Administrator</td><td><span class="employee-status active">Active</span></td><td><button class="row-action" data-employee-action="profile" data-employee-name="Brian Okello">View</button></td></tr>
+                <tr data-name="Clara Atwine" data-department="Administrative staff" data-status="On leave"><td><button class="employee-person" data-employee-action="profile" data-employee-name="Clara Atwine"><span class="employee-avatar avatar-purple">CA</span><span><b>Clara Atwine</b><small>Joined 18 Aug 2021</small></span></button></td><td>KIU-00108</td><td>clara.atwine@kiu.ac.ug</td><td>Administrative staff</td><td>Senior Accountant</td><td><span class="employee-status leave">On leave</span></td><td><button class="row-action" data-employee-action="profile" data-employee-name="Clara Atwine">View</button></td></tr>
+                <tr data-name="David Kato" data-department="Academic staff" data-status="Active"><td><button class="employee-person" data-employee-action="profile" data-employee-name="David Kato"><span class="employee-avatar avatar-orange">DK</span><span><b>David Kato</b><small>Joined 22 Sep 2019</small></span></button></td><td>KIU-00042</td><td>david.kato@kiu.ac.ug</td><td>Academic staff</td><td>Dean of Faculty</td><td><span class="employee-status active">Active</span></td><td><button class="row-action" data-employee-action="profile" data-employee-name="David Kato">View</button></td></tr>
+                <tr data-name="Esther Namanya" data-department="Support staff" data-status="Inactive"><td><button class="employee-person" data-employee-action="profile" data-employee-name="Esther Namanya"><span class="employee-avatar avatar-pink">EN</span><span><b>Esther Namanya</b><small>Joined 10 Jun 2023</small></span></button></td><td>KIU-00196</td><td>esther.namanya@kiu.ac.ug</td><td>Support staff</td><td>Student Counsellor</td><td><span class="employee-status inactive">Inactive</span></td><td><button class="row-action" data-employee-action="profile" data-employee-name="Esther Namanya">View</button></td></tr>
+              </tbody>
+            </table>
+            <p class="employee-empty" id="employee-empty" hidden>No employees match the current filters.</p>
+          </div>
+          <div class="employee-table-footer"><span id="employee-count">Showing 5 of 845 employees</span><div aria-label="Employee pages"><button class="pagination active" type="button" data-page="1" aria-current="page">1</button><button class="pagination" type="button" data-page="2">2</button><button class="pagination" type="button" data-page="3">3</button><span aria-hidden="true">...</span><button class="pagination" type="button" data-page="85">85</button></div></div>
+        </div>
+        <div class="employee-view organization-view" data-employee-view="organization" hidden>
+          <div class="org-chart"><div class="org-node org-root"><span class="employee-avatar avatar-green">AM</span><b>Anne Musoke</b><small>Vice Chancellor</small></div><div class="org-line"></div><div class="org-branches"><div class="org-node"><span class="employee-avatar avatar-blue">DK</span><b>David Kato</b><small>Academic staff</small><span class="org-count">286 employees</span></div><div class="org-node"><span class="employee-avatar avatar-purple">AN</span><b>Aisha Namusoke</b><small>Administrative staff</small><span class="org-count">140 employees</span></div><div class="org-node"><span class="employee-avatar avatar-orange">JK</span><b>Joseph Kintu</b><small>Technical staff</small><span class="org-count">76 employees</span></div><div class="org-node"><span class="employee-avatar avatar-pink">SN</span><b>Sarah Nakiwala</b><small>Support staff</small><span class="org-count">117 employees</span></div></div></div>
+        </div>
+        <div class="employee-view leave-view" data-employee-view="leave" hidden>
+          <div class="employee-toolbar leave-toolbar"><div><h2>Leave requests</h2><p class="muted">Review and approve employee leave applications.</p></div><button class="modal-secondary" data-employee-action="leave-export">Export requests</button></div>
+          <div class="leave-list"><article><span class="employee-avatar avatar-purple">CA</span><div><b>Clara Atwine</b><small>Annual leave · 17–21 June 2026</small></div><span class="leave-pending">Pending</span><button class="row-action" data-employee-action="approve">Review</button></article><article><span class="employee-avatar avatar-blue">JM</span><div><b>John Mwesigwa</b><small>Sick leave · 15–16 June 2026</small></div><span class="leave-pending">Pending</span><button class="row-action" data-employee-action="approve">Review</button></article><article><span class="employee-avatar avatar-orange">RN</span><div><b>Rebecca Nambi</b><small>Maternity leave · 01 Jun–30 Aug 2026</small></div><span class="leave-approved">Approved</span><button class="row-action" data-employee-action="profile" data-employee-name="Rebecca Nambi">View</button></article></div>
+        </div>
+      </section>
+      <footer><span>KIU HR &amp; Finance · Internal use only</span><span>Last refreshed: 06 Nov 2025, 08:42 EAT</span></footer>
+    </main>
+    <div class="modal-backdrop" id="detail-modal" hidden>
+      <section class="detail-modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+        <button class="modal-close" aria-label="Close dialog" data-action="close-modal">×</button>
+        <p class="eyebrow" id="modal-kicker">Dashboard detail</p>
+        <h2 id="modal-title">Details</h2>
+        <div id="modal-content"></div>
+        <button class="modal-primary" data-action="close-modal">Done</button>
+      </section>
+    </div>
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    <script src="app.js?v=10"></script>
+  </body>
+</html>
+
+
+

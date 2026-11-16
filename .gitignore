@@ -1,0 +1,8 @@
+.ghost-worker.sqlite3
+.ghost-worker.sqlite3-journal
+__pycache__/
+*.py[cod]
+.venv/
+.venv-*/
+desktop.ini
+/WhatsApp Video 2026-11-15 at 15.55.31.mp4
