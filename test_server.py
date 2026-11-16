@@ -110,6 +110,8 @@ class GhostWorkerServerTests(unittest.TestCase):
 
     def test_ghost_worker_role_can_read_employee_profile(self):
         self.login("finance@kiu", "finance123")
+        status, _ = self.request("GET", "/api/attendance")
+        self.assertEqual(status, 403)
         status, response = self.request("GET", "/api/ghost/employees/KIU-0014")
         self.assertEqual(status, 200)
         employee = response["employee"]
